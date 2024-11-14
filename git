@@ -31,3 +31,19 @@ git commit -m "一些注释"
 然后上传
 git push
 
+
+将add 和 commit合并
+git commit -a
+将add commit 和push 合并
+gedit ~/.bashrc
+加入
+function lazygit(){
+    git add
+    git commit -a -m "$1"
+    git push
+}
+应用更改
+source ~/.bashrc
+执行
+lazygit "一些注释"
+
