@@ -25,6 +25,9 @@ gh repo view              # 查看仓库信息，需要在一个配置了对应�
 gh repo sync              # 使本地仓库与远程仓库同步
 gh repo rename            # 重命名仓库
 
-本地的更改需要上传至远程仓库
+本地的更改需要上传至远程仓库，首先还是创建更改
+git add .
+git commit -m "一些注释"
+然后上传
 git push
 
