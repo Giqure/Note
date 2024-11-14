@@ -1,0 +1,8 @@
+安装依赖：（2204）sudo apt install libfuse2
+（2404）sudo apt install libfuse2t64
+添加权限：chmod u+x path/to/AppImage
+右键文件，点标签权限，勾选允许执行文件
+双击文件
+
+==卸载==
+AppImage只是一个程序，不会安装，删掉文件就可以了

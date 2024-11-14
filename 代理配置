@@ -1,0 +1,143 @@
+文档目录：
+全局代理
+>在设置中设置       >>--不能代理HTTPS
+>更改环境变量       >>临时    >>永久
+>错误的修改设置
+>删除环境变量
+-------
+git代理
+>http(s)协议
+>ssh协议
+>git协议
+>删除git设置
+-------
+npm代理
+>>改  >>查  >>删
+----------------下面应该添加
+pip代理  conda代理
+
+
+-----------------------------------------------------------------------
+全局
+-----------------------------------------------------------------------
+在设置中改代理
+HTTP代理     127.0.0.1 7890
+HTTPS代理    127.0.0.1 7890
+FTP代理                0
+Socks主机(S) 127.0.0.1 7890
+
+不过这样会传HTTPS进代理，某代理软件接不了HTTPS协议
+需要在环境中把HTTPS转成HTTP传
+
+1. 查看环境变量
+env | grep proxy
+env | grep PROXY
+
+改完如下：
+no_proxy=localhost,127.0.0.0/8,::1
+https_proxy=http://127.0.0.1:7890
+http_proxy=http://127.0.0.1:7890
+all_proxy=socks://127.0.0.1:7890
+
+NO_PROXY=localhost,127.0.0.0/8,::1
+HTTPS_PROXY=http://127.0.0.1:7890
+HTTP_PROXY=http://127.0.0.1:7890
+ALL_PROXY=socks://127.0.0.1:7890
+
+2. 怎么改？
+export HTTP_PROXY=http://127.0.0.1:7890
+export HTTPS_PROXY=http://127.0.0.1:7890
+export ALL_PROXY=socks://127.0.0.1:7890
+export http_proxy=http://127.0.0.1:7890
+export https_proxy=http://127.0.0.1:7890
+export all_proxy=socks://127.0.0.1:7890
+
+以上是临时加入环境变量
+设置里还填之前的，不管他
+
+永久（每次开机启动加载）：
+在~/.bashrc里加入这几句
+使之生效
+source ~/.bashrc
+
+
+
+
+不能在设置里这样设置
+HTTP代理     http://127.0.0.1  7890
+HTTPS代理    http://127.0.0.1  7890
+FTP代理                        0
+Socks主机(S) socks://127.0.0.1 7890
+会导致
+HTTP_PROXY=http://http://127.0.0.1:7890
+HTTPS_PROXY=https://http://127.0.0.1:7890
+ALL_PROXY=socks://socks://127.0.0.1:7890
+
+
+==取消==
+环境变量的取消
+临时：
+unset HTTP_PROXY
+unset HTTPS_PROXY
+unset ALL_PROXY
+unset http_proxy
+unset https_proxy
+unset all_proxy
+永久：
+在~/.bashrc删除
+
+
+-----------------------------------------------------------------------
+git的代理
+-----------------------------------------------------------------------
+http/https协议
+git config --global http.proxy "http://127.0.0.1:7890"
+git config --global https.proxy "http://127.0.0.1:7890"
+
+
+ssh协议
+在~/.ssh/config写入
+Host github.com
+    ProxyCommand connect -S 127.0.0.1:7890 %h %p
+
+
+git协议
+sudo apt install connect-proxy
+
+在/usr/bin/gitproxy.sh写入
+#!/bin/bash
+connect -S 127.0.0.1:7890 $@
+
+提权
+chmod +x gitproxy.sh
+
+关联到git
+git config --global core.gitproxy gitproxy.sh
+
+
+删除git配置：在~/.gitconfig找到删除
+
+
+
+-----------------------------------------------------------------------
+给npm设置代理
+-----------------------------------------------------------------------
+改npm的配置：
+npm config set proxy       http://127.0.0.1:7890
+npm config set https-proxy http://127.0.0.1:7890
+查看npm配置
+npm config list
+npm config get proxy
+npm config get https-proxy
+取消npm的配置
+npm config delete proxy
+npm config delete https-proxy
+
+
+
+-----------------------------------------------------------------------
+apt代理
+-----------------------------------------------------------------------
+/etc/apt/apt.conf.d/10proxy写入
+Acquire::http::Proxy "http://127.0.0.1:7890";
+Acquire::https::Proxy "http://127.0.0.1:7890";

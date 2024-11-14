@@ -1,0 +1,2 @@
+dpkg -i package_name.deb			安装软件包
+dpkg -I package_name.deb			显示已安装的软件包列表

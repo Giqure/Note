@@ -1,0 +1,23 @@
+安装cuda会带驱动
+安装时会禁用Nouveau管理器，重启后会无显示。应进入高级选项root模式，继续安装。
+
+
+根据https://docs.omniverse.nvidia.com/dev-guide/latest/linux-troubleshooting.html，
+不要安装PPA源的版本。
+官网版本：https://www.nvidia.com/Download/Find.aspx
+
+卸载PPA源
+sudo apt-get remove --purge *nvidia*
+sudo apt autoremove
+sudo apt autoclean
+卸载官网的
+sudo nvidia-uninstall
+
+重启
+
+使用命令行tty，加权限，再运行
+sudo chmod +x NVIDIA-Linux-x86_84-........run
+sudo ./NVIDIA-Linux-x86_64..........run
+
+不要选更改Xorg的配置，会导致开机黑屏，其他的按需选择即可。
+

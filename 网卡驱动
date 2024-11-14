@@ -1,0 +1,27 @@
+基于iwlwifi
+测试Intel AX211可用
+安装依赖
+sudo apt install flex bison
+
+下载backport包
+git clone https://github.com/intel/backport-iwlwifi.git
+进入源码目录
+cd backport-iwlwifi
+cd iwlwifi-stack-dev
+编译
+sudo make defconfig-iwlwifi-public
+sudo make -j32
+sudo make install
+下载驱动
+git clone git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
+进入驱动目录
+cd linux-firmware/
+将驱动导入系统
+sudo cp iwlwifi-* /lib/firmware/
+sudo apt install --reinstall linux-firmware
+重启
+
+
+
+backport向后移植
+向后移植是从最新版本的上游软件包中获取安全漏洞修复，并将其应用到的较旧的软件包版本中的过程。

@@ -1,0 +1,10 @@
+在~/.bash_alias或./bashrc添加    没有则创建一个
+
+alias 命令='path/to/executeFile'
+
+注意：：等号不能有空格
+
+
+部分教程：
+使用alias命令可以临时添加命令，不永久
+

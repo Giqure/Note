@@ -1,0 +1,15 @@
+Ubuntu默认管理器：Nautilus
+更好用的管理器：Nemo
+sudo apt install nemo
+
+安装后，将其变更为默认管理器。改/etc/gnome/default.list  （Gnome的默认应用程序列表，约195行）
+inode/directory的值改为nemo.desktop
+
+若要将桌面管理器一并从Nautilus更改为Nemo，执行
+gsettings set org.gnome.desktop.background show-desktop-icons false
+gsettings set org.nemo.desktop show-desktop-icons true
+
+
+
+对于部分教程中使用xdg-mime或（同等效果）更改~/.config/mimeapps.list，并不好用，只改了自己账号下的，还与Gnome还冲突。
+

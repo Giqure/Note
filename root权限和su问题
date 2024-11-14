@@ -1,0 +1,7 @@
+新的系统的root密码随机，改密码
+sudo passwd root
+
+sudo输入的是当前用户的密码
+su输入的是root的密码
+
+sudo一次最多15min

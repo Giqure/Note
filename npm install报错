@@ -1,0 +1,15 @@
+npm ERR! code ENOTEMPTY
+npm ERR! syscall rmdir
+npm ERR! path D:\cmeim\chongtong\cmeim-web\node_modules.staging\swiper-6795cdfd
+npm ERR! errno -4051
+npm ERR! ENOTEMPTY: directory not empty, rmdir ‘D:\cmeim\chongtong\cmeim-web\node_modules.staging\swiper-6795cdfd’
+
+npm ERR! A complete log of this run can be found in:
+npm ERR! C:\Users\Administrator\AppData\Roaming\npm-cache_logs\2022-07-29T05_51_18_554Z-debug.log
+
+
+1、npm cache clean --force
+2、将node_modules文件夹删除
+3、npm i
+
+来源：https://blog.csdn.net/qq_43405812/article/details/126054925
