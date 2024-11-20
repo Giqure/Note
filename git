@@ -47,3 +47,8 @@ source ~/.bashrc
 执行
 lazygit "一些注释"
 
+其他的一些命令
+git有关绑定的远程仓库的操作
+git remote
+git remote -v            # 查看各个操作绑定的远程仓库以及对应的代号
+git remote show origin   # 查看代号origin的表示的远程仓库
