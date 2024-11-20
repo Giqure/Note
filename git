@@ -8,8 +8,15 @@ git init
 加入需要管理的文件
 git add 关机慢     # 添加个别文件
 git add .         # 添加所有文件
+设置自己的身份
+设置git全局默认身份
+git config --global user.email "somebody@someemail.com"
+git config --global user.name "Giqure"   # 注意名字
+设置git在这个文件夹中的身份
+git config --local user.email "somebody@someemail.com"
+git config --local user.name "Giqure"   # 注意名字
 将更改提交到管理器
-git commit -m "一些注释"
+git commit -m "一些注释"    # 有身份才能commit
 至此，git已经成功管理了
 
 github是远程仓库平台，可以把文件传输到那里去。
