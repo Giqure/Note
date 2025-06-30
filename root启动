@@ -27,6 +27,11 @@ sudo vi /etc/pam.d/gdm-autologin
 [Line 3]
 auth required pam_succeed_if.so user != root quiet_success
 
+4. 开机自动root用户
+[Line 5]
+AutomaticLoginEnable=True
+AutomaticLogin=root
+
 
 
 
