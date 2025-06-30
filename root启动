@@ -1,0 +1,113 @@
+以root用户登录Ubuntu图形界面
+
+
+--------------------
+Ubuntu 22.04
+--------------------
+1. 修改gdm3配置文件
+sudo gedit /etc/gdm3/custom.conf
+
+在[security]下方插入
+[Line 20]
+AllowRoot=true
+
+
+2. 修改pam准许帐密登录
+sudo vi /etc/pam.d/gdm-password
+
+注释以下行
+[Line 3]
+auth required pam_succeed_if.so user != root quiet_success
+
+
+3. 修改pam准许自动登录
+sudo vi /etc/pam.d/gdm-autologin
+
+注释以下行
+[Line 3]
+auth required pam_succeed_if.so user != root quiet_success
+
+
+
+
+以root用户启动GUI app，需加--no-sandbox和--user-data-dir
+
+--------------------
+Microsoft Edge
+--------------------
+修改启动语句文件
+sudo gedit /usr/bin/microsoft-edge
+
+exec语句改为
+[Last Line]
+exec -a "$0" "$HERE/msedge" "$@" --user-data-dir --no-sandbox
+
+
+--------------------
+Visual Studio Code
+--------------------
+修改启动语句文件
+sudo get /usr/bin/Code
+
+修改判别root后操作
+[Line 30]
+# If root, ensure that --user-data-dir or --file-write is specified
+if [ "$(id -u)" = "0" ]; then
+#	for i in "$@"
+#	do
+#		case "$i" in
+#			--user-data-dir | --user-data-dir=* | --file-write | tunnel | serve-web )
+#				CAN_LAUNCH_AS_ROOT=1
+#			;;
+#		esac
+#	done
+#	if [ -z $CAN_LAUNCH_AS_ROOT ]; then
+#		echo "You are trying to start Visual Studio Code as a super user which isn't recommended. If this was intended, please add the argument \`--no-sandbox\` and specify an alternate user data directory using the \`--user-data-dir\` argument." 1>&2
+#		exit 1
+#	fi
+	HAS_USER_DATA_DIR=0
+	HAS_NO_SANDBOX=0
+	for arg in "$@"; do
+		case "$arg" in
+			--user-data-dir*)
+			HAS_USER_DATA_DIR=1
+        	        ;;
+		esac
+		case "$arg" in 
+			--no-sandbox)
+			HAS_NO_SANDBOX=1
+			;;
+		esac
+	done
+	# add "--user-data-dir" if not specified
+	if [ "$HAS_USER_DATA_DIR" -eq 0 ]; then
+		set -- "--user-data-dir=$USER_DATA_DIR" "$@"
+	fi
+	# add "--no-sandbox" if not specified
+	if [ "$HAS_NO_SANDBOX" -eq 0 ]; then
+		set -- "--no-sandbox" "$@"
+	fi
+fi
+
+
+--------------------
+那个软件
+--------------------
+1.创建一个desktop文件
+仅当前用户
+gedit ~/.local/share/applications/软件.desktop
+所有用户
+gedit /usr/share/applications/软件.desktop
+
+文件内容
+[Desktop Entry]
+Name=软件
+Exec="/path/to/软件" --no-sandbox --user-data-dir
+Icon="/path/to/软件.png"
+Terminal=false
+Type=Application
+Categories=Network;
+
+2.自起
+打开启动应用程序
+编辑，加入--no-sandbox --user-data-dir
