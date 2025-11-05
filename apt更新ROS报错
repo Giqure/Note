@@ -1,0 +1,7 @@
+报错样例：
+Err:xx http://packages.ros.org/ros/ubuntu focal InRelease 
+  The following signatures were invalid: EXPKEYSIG F42ED6FBAB17C654 Open Robotics <info@osrfoundation.org>
+
+一句命令搞定
+sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+
