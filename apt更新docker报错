@@ -1,0 +1,7 @@
+Err:xx https://download.docker.com/linux/ubuntu focal Release                                                                                                                                                      
+  Could not handshake: Error in the pull function.
+
+sudo环境无代理
+sudo -E apt update
+
+-E 指使用将当前用户环境变量而非sudo的
