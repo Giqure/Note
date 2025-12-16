@@ -1,5 +1,28 @@
 安装cuda会带驱动
-安装时会禁用Nouveau管理器，重启后会无显示。应进入高级选项root模式，继续安装。
+
+2026更新：
+安装cuda会带驱动，一起安装即可
+下载run文件：
+https://developer.nvidia.com/cuda-downloads
+下载时卸载旧驱动和PPA源的驱动
+sudo nvidia-uninstall
+sudo apt-get remove --purge *nvidia*
+sudo apt autoremove
+sudo apt autoclean
+
+下载后，重启至GRUB，并在GRUB下按e，编辑本次启动参数，修改引导目标为multi-user模式，使启动不加载图形界面*
+将linux行的结尾处添加 systemd.unit=multi-user.target
+根据提示按Ctrl+X或F10继续启动
+
+sh path/to/cuda.run
+
+
+*这种为临时修改，仅本次生效。该配置文件为/etc/default/grub，编辑并sudo update-grub为永久修改
+----------------------------------------------------------------------------------------------------
+分割线
+以下部分内容不准确
+----------------------------------------------------------------------------------------------------
+说在前面：安装时会禁用Nouveau管理器，重启后会无显示。应进入高级选项root模式，继续安装。
 
 
 根据https://docs.omniverse.nvidia.com/dev-guide/latest/linux-troubleshooting.html，

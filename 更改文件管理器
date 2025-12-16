@@ -2,7 +2,7 @@ Ubuntu默认管理器：Nautilus
 更好用的管理器：Nemo
 sudo apt install nemo
 
-安装后，将其变更为默认管理器。改/etc/gnome/default.list  （Gnome的默认应用程序列表，约195行）
+安装后，将其变更为默认管理器。改/etc/gnome/defaults.list  （Gnome的默认应用程序列表，约195行）
 inode/directory的值改为nemo.desktop
 
 若要将桌面管理器一并从Nautilus更改为Nemo，执行
