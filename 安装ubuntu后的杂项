@@ -44,3 +44,8 @@ https://github.com/giqure/note/更改文件管理器
 在侧边栏不显示挂载的硬盘
 系统设置 > （第五个）外观 > 配置Dock行为 > 显示卷和设备
 
+双系统时间不一致
+https://sspai.com/post/55983
+省流：Windows下管理员Powershell
+Reg add HKLM\SYSTEM\CurrentControlSet\Control\TimeZoneInformation /v RealTimeIsUniversal /t REG_DWORD /d 1
+
