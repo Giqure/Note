@@ -1,0 +1,244 @@
+本文基于Ubuntu 24.04
+1. 用户配置
+一般服务器默认带有root和ubuntu用户，ubuntu用户可以作为平时开发的用户
+如需使用root权限应通过直连（如云服务商提供的终端）进入，或在可以sudo的用户下使用sudo su
+
+网络应用在部署的时候，还应创建一个低权限的专用用户，上线时使用这个用户
+sudo useradd -r -s /usr/sbin/nologin webapp
+*解释
+*useradd是创建用户命令，相比类似命令adduser更底层。
+*-r 创建系统用户，无家目录。系统用户的UID一般在100~999
+*-s /usr/sbin/nologin 无法登录，即无法交互，只能运行后台服务
+*webapp 用户名
+
+删除用户：
+sudo systemctl --all | grep admin       # 删除前检查服务依赖
+sudo deluser --remove-all-files u5er    # 会删除相关文件
+sudo deluser u5er   # 不会删除相关文件
+删除时提示进程占用：
+sudo pkill -u u5er
+sudo kill all -u u5er
+
+查询用户：
+id webapp
+
+
+2. 登录配置
+01 SSH登录配置修改
+sudo vim /etc/ssh/ssh_config
+
+修改内容：
+禁止Root登录
+PermitRootLogin no
+允许指定用户登录
+AllowUser ubuntu
+禁用密码
+PasswordAuthentication no
+允许密钥
+PubkeyAuthentication yes
+修改端口
+Port 20002
+
+*修改端口还是有必要的，目前仍广泛存在扫22口的坏人。修改端口后要设置防火墙，见第4部分
+
+查看修改的关键字
+grep -E "Port|PermitRootLogin|PasswordAuthentication|AllowUser" /etc/ssh/sshd_config
+
+02 SSH Socket配置修改
+sudo vim /etc/systemd/system/ssh.socket
+
+修改内容：
+端口
+ListenStream=20002
+
+03 重启服务
+sudo systemctl daemon-reload
+sudo systemctl stop ssh.socket
+sudo systemctl restart ssh
+#查看服务
+sudo systemctl status ssh.socket
+#查看端口监听
+netstat -anpt|grep 20002
+*配置内外防火墙并验证可以SSH后关闭终端，避免与服务器失去联系
+
+
+3. 文件权限
+建议配置
+sudo chown -R webapp:webapp /path/to/webapp
+为方便开发，用其他用户替代webapp（不建议）
+生产时锁定文件，设置不可更改属性
+sudo chattr +i /path/to/webapp
+
+
+4. 防火墙
+01 云服务商防火墙
+TCP协议中，向全部IP开放的端口应只有80、443、自定义SSH (多站点配置的81、8000等也可以，但不要开放数据库如3306、未转发的应用3000等)
+ICMP(v6)的Ping按需开放
+其余端口应限制登录IP，或使用SSH隧道端口映射等功能
+
+02 系统防火墙
+Ubuntu系统防火墙是ufw，和上条一样，之开80、443和SSH
+那app端口是3000或者其他不是80怎么办？Nginx转发，不能直接开放app端口
+查看防火墙状态：
+ufw status numbered # 更详细
+ufw status          # 更简略
+
+配置防火墙规则：
+sudo ufw default deny incoming   # 拒绝入站
+sudo ufw default allow outcoming # 允许出站
+sudo ufw allow 20002/tcp  # 允许tcp协议的20002端口出入
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw delete allow 20002  # 删除20002端口规则
+sudo ufw allow from 您的IP to any port 20002 proto tcp # 允许tcp协议的指定IP从20002口入站
+sudo ufw insert 1 deny from 糟糕IP to any  # 允许tcp协议的指定IP从20002口入站
+
+sudo ufw allow from 192.168.1.0/24 to any port 80:81,8000:8888 proto tcp # 允许tcp协议的，192.168.1.0子网主机从80、81、8000～8888端口出入
+sudo ufw status numbered # 会出现规则代码
+sudo ufw delete RuleID   # 只能一条一条的
+sudo ufw reset # 重置规则
+
+防火墙日志设置：
+sudo ufw logging [off|low|medium|high]
+防火墙日志查看：
+sudo less /var/log/kern.log | grep UFW
+sudo dmesg | grep UFW
+sudo journalctl -k | grep UFW | tail -n 20
+
+启用防火墙：
+sudo ufw enable
+
+
+5. nginx
+使用nginx.conf + sites-enabled + sites-avaliabe的模式
+/etc/nginx
+ | conf.d
+ | sites-available
+ |  | default
+ |  | siteA
+ |  | siteB
+ | sites-enabled
+ |  | siteA -> /etc/nginx/sites-available/siteA
+ |  | siteB -> /etc/nginx/sites-available/siteB
+ | nginx.conf
+ | modules
+ | ...
+其中
+01 nginx主配置
+sudo vim /etc/nginx/nginx.conf
+
+添加内容：
+http {
+    ...
+    include /etc/nginx/sites-enabled/*
+    # 请求频率限制 10ps
+    limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
+    # 禁止恶意 User-Agent (防扫描器爬虫)
+    map $http_user_agent $bad_bot {
+        default 0;
+        ~*(Scrapy|Curl|HttpClient|Java|Python) 1;
+    }
+}
+
+02 siteA 静态站点配置
+sudo vim /etc/nginx/sites-available/siteA
+
+添加内容：
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    # 泛域名匹配，匹配IP访问
+    server_name _;
+
+    # 博客静态文件目录
+    root /path/to/webapp/public;
+    index index.html index.htm;
+
+    # 禁止访问隐藏文件 (.git, .env 等)
+    location ~ /\. {
+        deny all;
+    }
+
+    # 默认路由规则
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+
+链接至sites-enabled
+sudo ln -s /etc/nginx/sites-available/siteA /etc/nginx/sites-enabled/
+
+03 siteB 需要转发的应用配置
+sudo vim /etc/nginx/sites-available/siteB
+
+添加内容：
+server {
+    listen 81;
+    listen [::]:81 default_server;
+    server_name _;
+
+    location / {
+        # 转发到本地沙箱进程
+        proxy_pass http://127.0.0.1:3000;
+        
+        # 隐藏后端特征
+        proxy_hide_header X-Powered-By;
+        
+        # 传递真实 IP
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # server中可以配置单独的限流规则，这里不写了
+    # 拦截爬虫
+    if ($bad_bot) {
+        return 403;
+    }
+}
+
+
+链接至sites-enabled
+sudo ln -s /etc/nginx/sites-available/siteB /etc/nginx/sites-enabled/
+
+
+6. 运行进程
+为应用创建一个进程
+sudo vim /etc/systemd/system/appweb.service
+
+文件内容：
+[Unit]
+Description=My Web App 
+After=network.target
+
+[Service]
+# --- 身份绑定 ---
+User=webapp
+Group=webapp
+
+# --- 运行环境 ---
+WorkingDirectory=/path/to/webapp
+# 生产环境启动命令 (端口3000)
+ExecStart=/usr/bin/npm start 
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# --- 自动重启 ---
+Restart=always
+RestartSec=10
+
+# --- 安全 ---
+# 禁止进程提权
+NoNewPrivileges=yes
+# 使用独立的 /tmp (防恶意脚本在临时目录执行)
+PrivateTmp=yes
+# 根文件系统只读 (防修改系统文件)
+ProtectSystem=strict
+# 禁止访问 /home (防窃取 SSH 密钥)
+ProtectHome=yes
+# 仅允许写入特定的日志/缓存目录 (根据实际需求调整)
+ReadWritePaths=/www/next-app/.next/cache
+
+[Install]
+WantedBy=multi-user.target
