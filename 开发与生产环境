@@ -109,102 +109,12 @@ sudo journalctl -k | grep UFW | tail -n 20
 sudo ufw enable
 
 
-5. nginx
-使用nginx.conf + sites-enabled + sites-avaliabe的模式
-/etc/nginx
- | conf.d
- | sites-available
- |  | default
- |  | siteA
- |  | siteB
- | sites-enabled
- |  | siteA -> /etc/nginx/sites-available/siteA
- |  | siteB -> /etc/nginx/sites-available/siteB
- | nginx.conf
- | modules
- | ...
-其中
-01 nginx主配置
-sudo vim /etc/nginx/nginx.conf
-
-添加内容：
-http {
-    ...
-    include /etc/nginx/sites-enabled/*
-    # 请求频率限制 10ps
-    limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
-    # 禁止恶意 User-Agent (防扫描器爬虫)
-    map $http_user_agent $bad_bot {
-        default 0;
-        ~*(Scrapy|Curl|HttpClient|Java|Python) 1;
-    }
-}
-
-02 siteA 静态站点配置
-sudo vim /etc/nginx/sites-available/siteA
-
-添加内容：
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-
-    # 泛域名匹配，匹配IP访问
-    server_name _;
-
-    # 博客静态文件目录
-    root /path/to/webapp/public;
-    index index.html index.htm;
-
-    # 禁止访问隐藏文件 (.git, .env 等)
-    location ~ /\. {
-        deny all;
-    }
-
-    # 默认路由规则
-    location / {
-        try_files $uri $uri/ =404;
-    }
-}
-
-链接至sites-enabled
-sudo ln -s /etc/nginx/sites-available/siteA /etc/nginx/sites-enabled/
-
-03 siteB 需要转发的应用配置
-sudo vim /etc/nginx/sites-available/siteB
-
-添加内容：
-server {
-    listen 81;
-    listen [::]:81 default_server;
-    server_name _;
-
-    location / {
-        # 转发到本地沙箱进程
-        proxy_pass http://127.0.0.1:3000;
-        
-        # 隐藏后端特征
-        proxy_hide_header X-Powered-By;
-        
-        # 传递真实 IP
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
-    # server中可以配置单独的限流规则，这里不写了
-    # 拦截爬虫
-    if ($bad_bot) {
-        return 403;
-    }
-}
-
-
-链接至sites-enabled
-sudo ln -s /etc/nginx/sites-available/siteB /etc/nginx/sites-enabled/
+5. nginx配置
+详见 https://github.com/Giqure/Note/nginx配置
 
 
 6. 运行进程
-为应用创建一个进程
+01 为应用创建一个进程
 sudo vim /etc/systemd/system/appweb.service
 
 文件内容：
@@ -238,7 +148,25 @@ ProtectSystem=strict
 # 禁止访问 /home (防窃取 SSH 密钥)
 ProtectHome=yes
 # 仅允许写入特定的日志/缓存目录 (根据实际需求调整)
-ReadWritePaths=/www/next-app/.next/cache
+ReadWritePaths=/path/to/.next/cache
 
 [Install]
 WantedBy=multi-user.target
+
+02 重启服务
+sudo systemctl daemon-reload
+如果在服务器上build，使用普通用户
+npm install
+npm run build
+将文件交给webapp
+sudo chown -R webapp:webapp /path/to/webapp
+开机自启
+sudo systemctl enable appweb
+启动服务
+sudo systemctl start appweb
+查看服务状态
+sudo systemctl status appweb
+服务日志
+sudo journalctl -u appweb -f
+npm没有在webapp用户上安装，可能找不到路径。可以使用绝对路径，一般/usr/local/bin/npm
+

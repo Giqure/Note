@@ -1,0 +1,344 @@
+使用现代的nginx.conf + sites-enabled + sites-avaliabe的模式，
+这种模式为多站点的情况（即多端口、多入口）的情况提供了灵活的配置手段，
+简要目录结构如下
+/etc/nginx
+ | conf.d
+ | sites-available
+ |  | default
+ |  | siteA
+ |  | siteB
+ | sites-enabled
+ |  | siteA -> /etc/nginx/sites-available/siteA
+ |  | siteB -> /etc/nginx/sites-available/siteB
+ | nginx.conf
+ | modules
+ | ...
+
+sites-avaliable 存放站点配置文件
+sites-enabled 存放站点配置文件的软连接
+nginx.conf 中不配置站点，而是使用include添加sites-enabled中的文件
+
+
+首先给出配置样例
+01 nginx主配置
+sudo vim /etc/nginx/nginx.conf
+
+添加内容：
+http {
+    # 原有配置 ...
+
+    # 包含启用的站点
+    include /etc/nginx/sites-enabled/*
+
+    # 安全配置
+    # 请求频率限制 10ps
+    limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
+    # 禁止恶意 User-Agent (防扫描器爬虫)
+    map $http_user_agent $bad_bot {
+        default 0;
+        ~*(Scrapy|Curl|HttpClient|Java|Python) 1;
+    }
+
+    # 隐藏nginx版本号
+    server_tokens off;
+}
+
+
+02 siteA 静态站点配置
+sudo vim /etc/nginx/sites-available/siteA
+
+*注意按需添加的内容，避免防护过强导致网站无法运行
+如果是HTTP
+添加内容：
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    # 泛匹配，允许IP访问
+    server_name _;
+
+    # 博客静态文件目录
+    root /path/to/webapp/public;
+    index index.html index.htm;
+
+    # 基线安全
+    # 禁止访问隐藏文件 (.git, .env 等)
+    location ~ /\. {
+        deny all;
+    }
+
+    # WAF安全，按需添加
+    # 只允许 GET/HEAD 请求 
+    if (\$request_method !~ ^(GET|HEAD)$ ) {
+        return 444; # 直接切断连接
+    }
+
+    # 默认路由
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+
+如果是HTTPS
+首先要有SSL证书，包含crt或pem和key，这些文件保存在/etc/nginx/ssl/
+添加内容：
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    # 泛匹配，允许IP访问
+    server_name _;
+
+    return 301 https://your-site.com\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    http2 on;
+
+    # 泛匹配，允许IP访问
+    server_name _;
+
+    # ssl证书，没有crt可以用pem
+    ssl_certificate /etc/nginx/ssl/your_ssl.crt;
+    ssl_certificate_key /etc/nginx/ssl/your_ssl.key;
+
+    # ssl安全
+    # ssl连接时限 86400秒=1天
+    ssl_session_timeout 86400;
+    # ssl缓存 50m约100000个会话
+    ssl_session_cache shared:SSL:50m;
+    # ssl连接方式 禁止客户端ticket，只用服务端缓存
+    ssl_session_tickets off;
+    # ssl协议 SSL、TLSv1.1都不安全
+    ssl_protocols TLSv1.2 TLSv1.3;
+    # 加密套件
+    ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384";
+    # 只用服务端加密套件（上一条列出的）
+    ssl_prefer_server_ciphers on;
+
+    # ssl性能，按需添加
+    # OSCP装订，须先生成dhparam.pem
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 8.8.8.8 1.1.1.1 valid=300s;
+    resolver_timeout 5s;
+
+    # 博客静态文件目录
+    root /path/to/webapp;
+    index index.html index.htm;
+
+
+    # 基线安全
+    # 禁止访问隐藏文件 (.git, .env 等)
+    location ~ /\. {
+        deny all;
+    }
+    # WAF安全，按需添加
+    # 只允许 GET/HEAD 请求 
+    if (\$request_method !~ ^(GET|HEAD)$ ) {
+        return 444; # 直接切断连接
+    }
+
+    # 默认路由
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+
+    # 响应安全
+    # 让浏览器记住HTTPS
+    add_header Strict-Transport-Security "max-age=86400; includeSubDomains" always;
+    # 不允许iframe
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    # 文件类型检查，防止MIME嗅探攻击
+    add_header X-Content-Type-Options "nosniff" always;
+    # 跳转保护
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}
+
+链接至sites-enabled
+sudo ln -s /etc/nginx/sites-available/siteA /etc/nginx/sites-enabled/
+
+
+03 siteB 需要转发的应用配置
+sudo vim /etc/nginx/sites-available/siteB
+
+如果是HTTP
+添加内容：
+server {
+    listen 81;
+    listen [::]:81 default_server;
+    server_name _;
+
+    # 基线安全
+    # 禁止访问隐藏文件 (.git, .env 等)
+    location ~ /\. {
+        deny all;
+    }
+
+    # WAF安全，按需添加
+    # 只允许 GET/HEAD 请求 
+    if (\$request_method !~ ^(GET|HEAD)$ ) {
+        return 444; # 直接切断连接
+    }
+
+    # 转发规则
+    location / {
+        # 转发到本地
+        proxy_pass http://127.0.0.1:3000;
+        # 传递host name（替换相应的127.0.0.1为host name）
+        proxy_set_header Host $host;
+        # 传递https （否则陷入http重定向循环）
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 传递用户真实IP （避免日志都是127.0.0.1）
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # 启用 HTTP/1.1
+        proxy_http_version 1.1;
+        # 支持 WebSocket
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+
+        # 隐藏后端架构（如Next.js）
+        proxy_hide_header X-Powered-By;
+        # 隐藏Node.js
+        proxy_hide_header Server;
+    }
+
+    # server中可以配置单独的限流规则，这里不写了
+    # 拦截爬虫
+    if ($bad_bot) {
+        return 403;
+    }
+}
+
+如果是HTTPS
+添加内容：
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    # 泛匹配，允许IP访问
+    server_name _;
+
+    return 301 https://yoursite.com\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    http2 on;
+
+    # 泛匹配，允许IP访问
+    server_name _;
+
+    # ssl证书，没有crt可以用pem
+    ssl_certificate /etc/nginx/ssl/your_ssl.crt;
+    ssl_certificate_key /etc/nginx/ssl/your_ssl.key;
+
+    # ssl安全
+    # ssl连接时限 86400秒=1天
+    ssl_session_timeout 86400;
+    # ssl缓存 50m约100000个会话
+    ssl_session_cache shared:SSL:50m;
+    # ssl连接方式 禁止客户端ticket，只用服务端缓存
+    ssl_session_tickets off;
+    # ssl协议 SSL、TLSv1.1都不安全
+    ssl_protocols TLSv1.2 TLSv1.3;
+    # 加密套件
+    ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384";
+    # 只用服务端加密套件（上一条列出的）
+    ssl_prefer_server_ciphers on;
+
+    # ssl性能，按需添加
+    # OSCP装订，须先生成dhparam.pem
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 8.8.8.8 1.1.1.1 valid=300s;
+    resolver_timeout 5s;
+
+
+    # 基线安全
+    # 禁止访问隐藏文件 (.git, .env 等)
+    location ~ /\. {
+        deny all;
+    }
+    # WAF安全，按需添加
+    # 只允许 GET/HEAD 请求 
+    if (\$request_method !~ ^(GET|HEAD)$ ) {
+        return 444; # 直接切断连接
+    }
+
+    # 默认路由
+    location / {
+        # 转发到本地
+        proxy_pass http://127.0.0.1:3000;
+        # 传递host name（替换相应的127.0.0.1为host name）
+        proxy_set_header Host $host;
+        # 传递https （否则陷入http重定向循环）
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 传递用户真实IP （避免日志都是127.0.0.1）
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # 启用 HTTP/1.1
+        proxy_http_version 1.1;
+        # 支持 WebSocket
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+
+        # 隐藏后端架构（如Next.js）
+        proxy_hide_header X-Powered-By;
+        # 隐藏Node.js
+        proxy_hide_header Server;
+    }
+
+    # 响应安全
+    # 让浏览器记住HTTPS
+    add_header Strict-Transport-Security "max-age=86400; includeSubDomains" always;
+    # 不允许iframe
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    # 文件类型检查，防止MIME嗅探攻击
+    add_header X-Content-Type-Options "nosniff" always;
+    # 跳转保护
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}
+
+链接至sites-enabled
+sudo ln -s /etc/nginx/sites-available/siteB /etc/nginx/sites-enabled/
+
+
+04 配置后
+检查语法
+sudo nginx -t
+重启服务
+sudo systemctl reload nginx
+
+如果http2 on不支持，改成
+listen 443 ssl http2; 
+listen [::]:443 ssl http2;
+
+
+05 server配置含义
+记得写分号
+
+多个server匹配规则：
+客户端请求有Host头
+-> 匹配到一个且仅一个server_name
+--yes> 使用该server处理
+--no> 多个server中仅有一个default_server
+---yes> 使用该server处理
+---no> 有多个default_server
+----yes> 使用第一个default_server
+----no> 使用第一个server
+
+server内相同规则，后面的替换前面的
