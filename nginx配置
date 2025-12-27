@@ -342,3 +342,19 @@ listen [::]:443 ssl http2;
 ----no> 使用第一个server
 
 server内相同规则，后面的替换前面的
+
+location 和 proxy_pass 的斜杠：
+location的好理解，纯粹的字符串匹配，
+ /login  匹配 /login /login1 /login/ /login/123
+ /login/ 匹配 /login/ /login/123
+proxy_pass的斜杠表示保不保留被匹配的部分
+location /login {
+    proxy_pass http://127.0.0.1:8000;
+}
+请求 /login/123 -> 转发 http://127.0.0.1:8000/login/123
+请求 /login123 -> 转发 http://127.0.0.1:8000/login123
+location /login {
+    proxy_pass http://127.0.0.1:8000/;
+}
+请求 /login/123 -> 转发 http://127.0.0.1:8000/123
+请求 /login123 -> 转发 http://127.0.0.1:8000/123 *这里会自动加一个
