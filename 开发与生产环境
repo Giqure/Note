@@ -4,11 +4,14 @@
 如需使用root权限应通过直连（如云服务商提供的终端）进入，或在可以sudo的用户下使用sudo su
 
 网络应用在部署的时候，还应创建一个低权限的专用用户，上线时使用这个用户
-sudo useradd -r -s /usr/sbin/nologin webapp
+sudo useradd -r -s /usr/sbin/nologin webapp # 静态网站
+sudo useradd -r -m -s /bin/bash webapp2  # 动态网站
 *解释
 *useradd是创建用户命令，相比类似命令adduser更底层。
-*-r 创建系统用户，无家目录。系统用户的UID一般在100~999
+*-r 创建系统用户，无家目录。系统用户的UID一般在100~999，在GUI不显示入口。
+*-m 为用户创建家目录
 *-s /usr/sbin/nologin 无法登录，即无法交互，只能运行后台服务
+*-s /bin/bash 允许登录
 *webapp 用户名
 
 删除用户：
@@ -51,7 +54,9 @@ sudo vim /etc/systemd/system/ssh.socket
 端口
 ListenStream=20002
 
-03 重启服务
+03 检查语法
+sudo sshd -t
+重启服务
 sudo systemctl daemon-reload
 sudo systemctl stop ssh.socket
 sudo systemctl restart ssh
@@ -61,13 +66,35 @@ sudo systemctl status ssh.socket
 netstat -anpt|grep 20002
 *配置内外防火墙并验证可以SSH后关闭终端，避免与服务器失去联系
 
+04 基线安全
+设置密码有效期 默认99999天，改为90天
+sudo sed -i 's/^PASS_MAX_DAYS.*/PASS_MAX_DAYS   90/' /etc/login.defs
+查看修改
+grep "PASS_MAX_DAYS" /etc/login.defs
+设置密码过期365天后禁用账户 该设置不影响已有用户，不影响系统用户
+sudo sh -c "echo 'INACTIVE=365' >> /etc/default/useradd"
+*两者配合，会导致后加用户如果长时间不更新密码被禁用，谨慎添加
+
 
 3. 文件权限
-建议配置
+静态网站
 sudo chown -R webapp:webapp /path/to/webapp
 为方便开发，用其他用户替代webapp（不建议）
 生产时锁定文件，设置不可更改属性
 sudo chattr +i /path/to/webapp
+取消该属性
+sudo chattr -i /path/to/webapp
+
+动态网站
+
+安装访问控制扩展acl
+sudo apt install acl -y
+
+sudo setfacl -R -m
+
+
+SSL key限权
+(root下) sudo chmod 600 /etc/nginx/ssl/site.com.key
 
 
 4. 防火墙
@@ -91,7 +118,7 @@ sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw delete allow 20002  # 删除20002端口规则
 sudo ufw allow from 您的IP to any port 20002 proto tcp # 允许tcp协议的指定IP从20002口入站
-sudo ufw insert 1 deny from 糟糕IP to any  # 允许tcp协议的指定IP从20002口入站
+sudo ufw insert 1 deny from 糟糕IP to any  # 拒绝tcp协议的指定IP入站
 
 sudo ufw allow from 192.168.1.0/24 to any port 80:81,8000:8888 proto tcp # 允许tcp协议的，192.168.1.0子网主机从80、81、8000～8888端口出入
 sudo ufw status numbered # 会出现规则代码
@@ -170,3 +197,12 @@ sudo systemctl status appweb
 sudo journalctl -u appweb -f
 npm没有在webapp用户上安装，可能找不到路径。可以使用绝对路径，一般/usr/local/bin/npm
 
+
+5. 日志配置
+防火墙日志设置在第4部分
+01 基线安全
+编辑
+sudo vim /etc/rsyslog.d/50-default.conf
+对cron.*取消注释（约10行）
+重启服务
+sudo systemctl restart rsyslog

@@ -1,5 +1,7 @@
 git是版本管理器。
 
+1 概述
+01 基本操作（本地）
 使用git先安装 sudo apt install git
 git以文件夹为域管理其中文件的版本
 在某个文件夹建立git管理，以本文件夹Note为例
@@ -18,32 +20,27 @@ git config --local user.name "Giqure"   # 注意名字
 将更改提交到管理器
 git commit -m "一些注释"    # 有身份才能commit
 至此，git已经成功管理了
+add和commit的合并命令
+git commit -a
 
-github是远程仓库平台，可以把文件传输到那里去。
-github有自己的命令行控制 sudo apt install gh
-首先登陆
-gh auth login
-创建一个远程仓库
-gh repo create
+02 远程仓库
+github是远程仓库平台，可以把文件传输到那里去。github有自己的命令行工具，见03节。
 
-其他有关仓库的命令
-gh repo list              # 查看自己有哪些仓库
-gh repo view              # 查看仓库信息，需要在一个配置了对应远程github仓库的文件夹查看
-gh repo sync              # 使本地仓库与远程仓库同步
-gh repo rename            # 重命名仓库
+git remote
+git remote -v            # 查看各个操作绑定的远程仓库以及对应的代号
+git remote show origin   # 查看代号origin的表示的远程仓库
 
-本地的更改需要上传至远程仓库，首先还是创建更改
+102-1
+若已配置好本地仓库与远程仓库的绑定关系
+上传更改，首先还是创建更改
 git add .
 git commit -m "一些注释"
 然后上传
 git push
 
-
-将add 和 commit合并
-git commit -a
-将add commit 和push 合并
+创建一个add commit 和push 的合并命令
 gedit ~/.bashrc
-加入
+添加：
 function lazygit(){
     git add
     git commit -a -m "$1"
@@ -54,8 +51,77 @@ source ~/.bashrc
 执行
 lazygit "一些注释"
 
-其他的一些命令
-git有关绑定的远程仓库的操作
-git remote
-git remote -v            # 查看各个操作绑定的远程仓库以及对应的代号
-git remote show origin   # 查看代号origin的表示的远程仓库
+102-2
+若未配置绑定关系，且已有本地代码
+102-2-1
+若无远程仓库，新建空的远程仓库
+以github为例，可以使用
+a. 命令行工具
+gh repo create
+该命令会询问是否以当前的本地仓库创建远程仓库，若是则自动配置好绑定关系。 -> 配置完成，转至102-1
+b. 浏览器
+使用浏览器创建仓库，需要创建一个空的，不含README、.gitignore等任何文件。
+新建空仓库成功 -> 还需配置，转至102-2-2
+仓库中如果不小心创建了文件，删除仓库。 -> 删库从来，102-2-1
+102-2-2
+若已有远程仓库，且为空仓库
+指定远程仓库的别名（以后用origin替代链接）
+git remote add origin https://github.com/Giqure/Note.git
+如果需要重命名分支（2020年前git本地主分支默认名master，现为main）
+git branch -M main  # 如果分支名是master，可以重命名为main
+向远程仓库push，这是首次push，建立了跟踪关系，后续git push即可。
+git push -u origin main
+查看跟踪关系
+git branch -vv
+-> 配置完成，转至102-1
+102-2-3
+若已有远程仓库，且不为空
+如果远程仓库的文件没有用，就删除仓库重新建一个。 -> 102-2-2
+如果涉及到复杂的分支管理 -> 102-3-2
+
+102-3
+若未配置绑定关系，且已有远程代码
+102-3-1
+本地无代码
+git clone或fork一份
+102-3-2
+本地有代码
+TODO：长大后再学习
+
+
+2 github
+01 gh操作
+github有自己的命令行控制，建议资深github用户使用。
+sudo apt install gh
+使用时需登陆
+gh auth login
+创建一个远程仓库
+gh repo create
+
+其他有关仓库的命令
+gh repo list              # 查看自己有哪些仓库
+gh repo view              # 查看仓库信息，需要在一个配置了对应远程github仓库的文件夹查看
+gh repo sync              # 使本地仓库与远程仓库同步
+gh repo rename            # 重命名仓库
+
+02 github的登录
+- 密码登录
+  不安全，现不推荐。
+- ssh登录
+  ssh-keygen -t ed25519 -C "somebody@example.com"
+  ed25519是一种加密方式。该命令生成一对公钥私钥。
+  将公钥保存在github上，一般为id_ed25519文件
+  cat ~/.ssh/id_ed15519
+  复制内容，在浏览器登陆github，Settings > SSH and GPG keys > SSH keys > New SSH Key
+  填写信息，在key文本框中粘贴公钥内容。
+- token登录
+  在git clone、git pull等等时提示输入邮箱和密码，现github的密码登录已禁用，改为token登录。
+  若要git记住token需先
+  (linux)
+  git config --global credential.helper store
+  (Windows)
+  git config --global credential.helper manager
+  在浏览器登录github，Settings > Developer Settings > Personal access tokens
+  常规token选择 Tokens (Classic) > Generate new token > Generate new token (classic)
+  填写表单，然后获得一个新token，该token再也不会见到了，要保存好
+  在git clone等时用token替代密码进行鉴权。

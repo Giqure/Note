@@ -13,29 +13,7 @@ conda安装
 uv安装
 TODO：风扇、热键等ACPI支持
 
-git配置 - 个人github
-- 密码登录
-  不安全，现不推荐。
-- ssh登录
-  ssh-keygen -t ed25519 -C "somebody@example.com"
-  ed25519是一种加密方式。该命令生成一对公钥私钥。
-  将公钥保存在github上，一般为id_ed25519文件
-  cat ~/.ssh/id_ed15519
-  复制内容，在浏览器登陆github，Settings > SSH and GPG keys > SSH keys > New SSH Key
-  填写信息，在key文本框中粘贴公钥内容。
-- token登录
-  在git clone、git pull等等时提示输入邮箱和密码，现github的密码登录已禁用，改为token登录。
-  若要git记住token需先
-  (linux)
-  git config --global credential.helper store
-  (Windows)
-  git config --global credential.helper manager
-  在浏览器登录github，Settings > Developer Settings > Personal access tokens
-  常规token选择 Tokens (Classic) > Generate new token > Generate new token (classic)
-  填写表单，然后获得一个新token，该token再也不会见到了，要保存好
-  在git clone等时用token替代密码进行鉴权。
-
-有关git更详细note见
+git和github操作见下文第2部分02节、第1部分02节（102-2、102-3-1）
 https://github.com/giqure/note/git
 
 更改文件管理器
