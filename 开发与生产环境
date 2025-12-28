@@ -86,15 +86,28 @@ sudo chattr +i /path/to/webapp
 sudo chattr -i /path/to/webapp
 
 动态网站
-
+sudo chown -R webapp2:webapp2 /path/to/webapp2
 安装访问控制扩展acl
 sudo apt install acl -y
-
-sudo setfacl -R -m
-
+方便开发 为ubuntu用户设置
+设置当前文件权限
+sudo setfacl -R -m u:ubuntu:rwx /path/to/webapp2
+设置未来添加的文件权限
+sudo setfacl -R -d -m u:ubuntu:rwx /path/to/webapp2
+同时为生成的静态站点（如有）配置
+sudo setfacl -R -m u:webapp2:rwx /path/to/webapp
+sudo setfacl -R -d -m u:webapp2:rwx /path/to/webapp
 
 SSL key限权
 (root下) sudo chmod 600 /etc/nginx/ssl/site.com.key
+SSH文件限权
+(SSH用户下)
+chmod 600 ~/.ssh/config
+SSH 密钥限权
+(SSH用户下) 以默认的id_ed25519为例
+chmod 400 ~/.ssh/id_ed25519 # 更安全
+chmod 600 ~/.ssh/id_ed25519 # 常用
+chmod 644 ~/.ssh/id_ed25519.pub 
 
 
 4. 防火墙
@@ -196,6 +209,11 @@ sudo systemctl status appweb
 服务日志
 sudo journalctl -u appweb -f
 npm没有在webapp用户上安装，可能找不到路径。可以使用绝对路径，一般/usr/local/bin/npm
+npm没有在sudo上设置环境变量，可能找不到路径。添加链接
+which node 查看路径
+sudo ln -s /home/ubuntu/.nvm/versions/node/v24.12.0/bin/node /usr/bin/node
+sudo ln -s /home/ubuntu/.nvm/versions/node/v24.12.0/bin/npm /usr/bin/npm
+sudo ln -s /home/ubuntu/.nvm/versions/node/v24.12.0/bin/npx /usr/bin/npx
 
 
 5. 日志配置

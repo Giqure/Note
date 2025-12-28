@@ -14,9 +14,10 @@ git add .         # 添加所有文件
 设置git全局默认身份
 git config --global user.email "somebody@someemail.com"
 git config --global user.name "Giqure"   # 注意名字
-设置git在这个文件夹中的身份
+设置git在这个文件夹中的身份 --local可以省略
 git config --local user.email "somebody@someemail.com"
 git config --local user.name "Giqure"   # 注意名字
+*身份不设置无法提交，但只有启用权限控制的才会检查身份具体内容。
 将更改提交到管理器
 git commit -m "一些注释"    # 有身份才能commit
 至此，git已经成功管理了
@@ -112,6 +113,7 @@ gh repo rename            # 重命名仓库
   ed25519是一种加密方式。该命令生成一对公钥私钥。
   将公钥保存在github上，一般为id_ed25519文件
   cat ~/.ssh/id_ed15519
+  *如果只允许该密钥登录指定仓库，在仓库 > Settings > Deploy keys > Add deploy key操作
   复制内容，在浏览器登陆github，Settings > SSH and GPG keys > SSH keys > New SSH Key
   填写信息，在key文本框中粘贴公钥内容。
 - token登录
