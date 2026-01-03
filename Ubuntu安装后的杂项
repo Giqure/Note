@@ -11,7 +11,9 @@ N卡驱动及cuda安装
 https://github.com/giqure/note/Nvidia驱动
 conda安装
 uv安装
-TODO：风扇、热键等ACPI支持
+
+风扇控制
+https://github.com/giqure/note/Ubuntu风扇调速
 
 git和github操作见下文第2部分02节、第1部分02节（102-2、102-3-1）
 https://github.com/giqure/note/git

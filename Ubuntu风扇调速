@@ -1,0 +1,290 @@
+##  本文针对笔记本，以笔记本HP OMen 17-ck2002xx为例，简称该笔记本
+##  需要在风扇附近观察风扇运转情况
+##  本文对EC寄存器写入，可能导致的未知后果尚不明确，仅供参考
+00
+如果是同款笔记本，注意是完全同型号的，可以参考下面的设置
+*注意！下面的操作修改EC芯片寄存器，风险高
+sudo apt install acpica-tools acpi-call stress
+# ec_probe都是十进制
+sudo ec_probe write 149 31  # 设置狂暴模式
+sudo ec_probe write 98 0    # 手动设置会触发倒计时，0表示倒计时后什么都不做，否则会重置，这个命令的副作用未知
+sudo ec_probe write 52 44   # 将CPU风扇调至4400转，44表示4400转，一般20～44之间
+sudo ec_probe write 53 44   # 同理设置GPU风扇
+
+OMen 16-k0xxx或同型号 可以参考
+https://www.reddit.com/r/HPOmen/comments/xe9fiz/almost_nbfc_fan_profile_and_reverse_engineered/
+*这是Gemini提供的帖子，Gemini太强了
+
+
+
+01
+
+复制一份ACPI表
+sudo cat /sys/firmware/acpi/tables/DSDT > dsdt.dat
+直接复制的是机器码，翻译一下。该步骤生成dsdt.dsl
+iasl -d dsdt.dat
+在dsdt.dsl中查找'FAN'、'RPM'以及各种简写'SFAN' 'SRP' 'SFC'等
+风扇控制常常由EC芯片进行；_TZ是ACPI定义的热区（温度区）；WMI是暴露给Windows的接口，因此查找结果如果在EC、_TZ、WMI等等模块中，更有可能是风扇控制
+另外，风扇和温度控制、键盘/功能键/键盘灯往往是在同一个模块下
+_TZ中的风扇控制方法往往和温度有关
+如果是在WMI中找到的，还需要继续挖掘实现代码（可能需要知道参数，见02节）
+以该笔记本为例，在_SB.PC00.LPCB下可以找到EC0设备，并且定义了RAM的各个位置
+Scope (_SB.PC00.LPCB) {
+    Device (EC0) {
+        Field (ERAM, ByteAcc, NoLock, Preserve) {
+            ...
+            Offset (0x34),
+            SRP1,   8,
+            SRP2,   8,
+            ...
+            Offset (0x57),
+            CPUT,   8,
+            ...
+            GPUT,   8,
+            ...
+            LEDM,   3,
+            ...
+            Offset (0xB0),
+            RPM1,   8,
+            RPM2    8,
+            RPM3,   8,
+            RPM4,   8,
+            ...
+        }
+    }
+}
+还有第二种方法，见02节。如果不是EC控制，本文可能不适用。
+对EC进行修改风险极高！操作有误会导致无法开机，操作前务必斟酌并确认。
+如果笔记本有Windows，并且可以以官方的（或可信的非官方）形式控制风扇，那么可以用rweverything验证一下。
+rweverthing对内核内存进行操作，需要
+  - 在Windows defender中关闭"内核完整性"保护、关闭"Microsoft易受攻击的驱动程序阻止列表"
+  - regedit进入注册表，在
+    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CI\Config
+    中设置 VulnerableDriverBlocklistEnable 为 0
+  - 重启进入高级模式（Win11搜索高级启动）并选择疑难解答 > 高级设置 > 启动设置 > 禁用强制驱动程序签名模式。
+在rweverything上方点击EC图标，弹出EC寄存器表格。找到我们注意的SFAN、SRP1、SRP2、RPM1、RPM2、CPUT等等，
+以该笔记本为例，控制风扇转速，可以明显观察到
+  - RPM2+RPM1(小端序0xB1B0)就是风扇转速
+  - 而SRP1(0x34)和SRP2(0x35)应该是目标转速，分别是CPU和GPU的
+  - CPUT(0x57)和控制中心显示的温度相同
+  - GPUT(0x89)没看出什么
+  - SFAN(0xF4)一直是0，AI猜测是自动/手动模式，其实不是
+点击左上角保存图标可以保存，点击右上角Refresh图标可以控制刷新频率。
+而根据网上资料显示，HPCM(0x95)表示狂暴/平衡模式，在rweverything中得到验证。
+00节中帖子还提到倒计时控制的问题，也可以得到验证。
+在rwverything中可以直接写入EC寄存器，实验发现
+  - SRP1(0x34) SRP2(0x35)就是目标的风扇转速
+  - SFAN(0xF4)是风扇开关，写入64直接关机了！重启许多次后才开机
+  - HPCM(0x95)以及其他的寄存器没做实验
+从02节也可以验证SRP1和SRP2的作用
+回到Linux，对0x34和0x35设置
+# 0x34 的十进制 52
+# 0x35 的十进制 53
+sudo apt install acpica-tools acpi-call stress
+sudo ec_probe write 52 44
+# 可以观察CPU风扇急速转 44改20可以发现变慢
+sudo ec_probe write 53 44
+# 可以观察GPU风扇急速转 同理
+
+sudo ec_probe read 99
+# 观察倒计时器
+sudo ec_probe read 98
+# 观察倒计时控制位
+
+sudo ec_probe write 149 31
+# 设置狂暴模式
+在write 52 53 149后，在倒计时结束后对写入的寄存器读取，发现变回去了。修改倒计时控制位
+sudo ec_probe write 98 0
+这样等待倒计时结束写入的值不被重置。
+
+到此可以写一个风扇的控制脚本了，或者在.bashrc或.bash_alias写自定义命令。
+（有关自定义命令见 https://giqure.com/Giqure/note/自定义命令）
+参考
+hpfan() {
+    # CHECK input
+    if [[ -z "$1" ]] || ! [[ "$1" =~ ^[0-9]+$ ]]; then
+        echo "用法: hpfan <rpm>"
+        echo "<rpm> 必须是11和40之间的整数"
+        return 1
+    fi
+    
+    rpm=$1
+    if (( 10 < rpm && rpm < 50 )); then
+        sudo ec_probe 52 "$rpm"
+        sudo ec_probe 53 "$rpm"
+        sudo ec_probe 98 0
+    else
+        echo "RPM must be between 10 and 50 (exclusive)"
+        return 1
+    fi
+}
+alias hpp='sudo ec_probe 149 31 && sudo ec_probe 98 0'
+TODO: 根据温度自动调整的脚本
+
+
+
+02
+
+以该笔记本为例，控制中心是OMen Gaming Hub。
+相关协议和法规可能禁止对软件逆向，谨慎操作。本文所述不针对任何特定软件。
+下面是C#软件的静态反编译方法，首先github下载dnSpy，
+找到C#软件中可疑的DLL，windows下dir /s可以列出子文件夹内容，比如
+***.PerformanceControlModule.dll
+***.FanControlModule.dll
+在dnSpy中打开或拖到左侧 Assembly Explorer，在顶部Search > Search Assemblies（Ctrl+Shift+K）打开搜索
+搜索类型选择 数字/字符串 （Number/String），搜索Fan
+双击可能的结果，比如
+  - Set**FanContro**(***)
+  - public const string FanControl = "FanControl";
+如果是第二种字符串，右键菜单点击分析，在底部出现的分析窗口找到“被调用”情况
+如果是第一种，那就非常有可能了，看看代码，假设代码是
+public int SetSwFanControlLevel(int cpuFanLevel, int gpuFanLevel)
+{
+    int num = this.BiosWmiCmd_SetSync(131080, 46, new byte[]
+    {
+        Convert.ToByte(cpuFanLevel),
+        Convert.ToByte(gpuFanLevel)
+    });
+    if (num != 0)
+    {
+        FanSpeedEventSource.Log.Error(string.Format("SetSwFanControlLevel(): result = {0}", num));
+    }
+    return num;
+}
+代码显示，该函数接受两个参数，然后传给Wmi的Set函数，并且还传入了131080 46两个数
+继续看看代码，假设代码是
+public int BiosWmiCmd_SetSync(int command, int commandType, byte[] inputData)
+{
+    
+	try
+	{
+		JObject jobject = OmenHsaClient.ExecuteBiosWmiCommand(command, commandType, inputData.Length, inputData, returnDataSize);
+		if (jobject != null)
+		{
+			result = jobject["returnCode"].ToObject<int>();
+		}
+		this.LastFusionError = FusionError.HP_SERVICE_HOST_NO_ERROR;
+	}
+	catch (Exception ex) {...}
+}
+代码显示131080是命令值，46是命令类型，回到dsl中查找20008(131080的十六进制)
+找到代码
+Method (HWMC, 2, NotSerialized) {
+    CreateDWordField (Arg1, Zero, SGIN)
+    CreateDWordField (Arg1, 0x04, COMD)
+    CreateDWordField (Arg1, 0x08, CMDT)
+    CreateDWordField (Arg1, 0x0C, DSZI)
+    Local5 = DSZI /* \HWMC.DSZI */
+    If ((SGIN == 0x11223344)) {
+        If ((COMD == 0x00020008)) {
+            If ((CMDT == 0x2E)) {
+                ... 
+                \_SB.WMID.GM2E ()
+            }
+        }
+    }
+}
+代码显示了HWMC方法接受两个参数，并且COMD和CMDT都是第二个参数中提取出来的。
+HWMC有可能是Hardware Wmi之类的缩写，而且调用的是WMID的方法，再找找看
+找到代码
+Scpoe (_SB) {
+    Device (WMID) {
+        Method (WMAA, 3, Serialized) {
+            Acquire (MUTZ, 0xFFFF)
+            Local0 = HWMC (Arg1, Arg2)
+            Release (MUTZ)
+            Return (Local0)
+        }
+    }
+}
+Acquire和Release是互斥锁，防止资源死锁的。而WMID这个名称更加印证了猜测。它接受3个参数，第一个参数没用处。
+那就假设HWMC是要找的代码，看看GM2E函数
+Scope (_SB) {
+    Device (WMID) {
+        Method (GM2E, 0, NotSerialized)
+        {
+            Debug = "***"
+            Local0 = Package (0x02)
+                {
+                    Zero, 
+                    Zero
+                }
+            Local1 = WBUF /* \WBUF */
+            Local2 = DerefOf (Local1 [Zero])
+            Local3 = DerefOf (Local1 [One])
+            If ((^^PC00.LPCB.EC0.ECOK == One))
+            {
+                ^^PC00.LPCB.EC0.SRP1 = Local2
+                ^^PC00.LPCB.EC0.SRP2 = Local3
+            }
+
+            Return (Local0)
+        }
+    }
+}
+发现了SRP1和SRP2，而且在EC0中；观察附近的GM2D方法还用到了RPM1和RPM2等。
+搜索SRP1或RPM1等可以找到01节中的EC寄存器定义，可以回到01节了。
+
+
+
+03
+
+在Windows上可以点点程序控制风扇以及Fn键等等
+应用层 
+-> 调用WMI 
+    WMI是微软提出的规范，笔记本厂商对acpi进一步封装实现
+    Linux当然没有了，Linux通过sysfs等等方法调用ACPI
+-> 调用ACPI，查找AML
+    ACPI 是行业提出的规范，链接笔记本硬件与操作系统，由笔记本厂商和操作系统实现。
+    ACPI 全称Advanced Configuration and Power Interface，配置与电源接口。
+    ACPI 提出ACPI Machine Language (AML)，这种语言独立于CPU架构，需要操作系统实现解释器，调用CPU指令。
+    ACPI 规定了一些接口，并规定以表形式存储接口和对应的AML代码，笔记本厂商实现AML，操作系统负责实现解释这些表。
+    不同的接口存储在不同表中，如DSDT、SDTH等。像Max OS X只实现了对DSDT的解释。
+    也就是所，笔记本厂商在主板上写入一张张ACPI表，操作系统读这个表，读到需要的AML后解释、执行。
+    实际上，这个表在一块闪存中，开机时BIOS会把ACPI表转入内存，操作系统在内存中读表。
+-> 解释程序解释AML，执行CPU指令，去与EC通信
+    控制风扇、Fn键这些操作，需要EC来完成，因此AML解释出来的指令常常为（假设0x66是EC命令口，62是数据口）
+        in al, 0x66
+        in al, 0x62
+-> EC（嵌入式控制器）执行，与风扇等硬件通信（I2C、SMBus等）
+
+大部分的内置的硬件控制都是这个流程，由WMI(Windows)或sysfs(Linux)，到EC。
+像USB等等外设则是直接通过PCI总线与CPU通信的，不走这个。
+
+
+AML是机器语言，对应的人读的是ASL
+DSDT中ASL一般是
+Device (PC00) // PCI上的PC00设备
+{
+    Name (_HID, EisaId ("PNP0A08"))  // 硬件ID：PNP0A08表示PCI主桥
+    Name (_CID, EisaId ("PNP0A03"))  // 兼容ID：PNP0A03表示PCI总线
+    Method (_BBN, 0, NotSerialized)  // 定义_BBN方法
+    {
+        // 以下是方法体，例如：
+        Return (0x00) // 返回总线号0
+        // 或更复杂的硬件访问逻辑
+    }
+}
+这在acpiexec里体现为
+\_SB.PC00._BBN
+_SB：系统总线，这是所有总线的总线，总总线
+PC00：_SB上的PC00
+_BBN: PC00的方法之一
+
+大部分硬件都在系统总线上或者他的分总线上
+除了按总线归类，还有
+_TZ 表示热区（温度管理域）
+
+_GPE 表示通用事件
+比如
+\_GPE._E2A
+\_GPE._L66
+_E表示边沿触发，_L表示电平触发 2A和66都是序号
+
+带下划线的是ACPI中的关键字_SB _BBN _CID _E2A都是
+
+
+
+05
+实验发现SFAN 只是个开关，只要不是0都说明有问题，如果是同型号的笔记本，别调这个。
+同样的，_TZ中许多控制都和温度有关，比如过热保护阈值等，不建议调。
