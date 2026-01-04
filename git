@@ -1,9 +1,11 @@
-git是版本管理器。
+git是版本管理器。git代理见https://github.com/giqure/note/代理配置
+
 
 1 概述
+
 01 基本操作（本地）
 使用git先安装 sudo apt install git
-git以文件夹为域管理其中文件的版本
+git以文件夹为单位管理其中文件的版本
 在某个文件夹建立git管理，以本文件夹Note为例
 cd /path/to/Note
 git init
@@ -24,9 +26,10 @@ git commit -m "一些注释"    # 有身份才能commit
 add和commit的合并命令
 git commit -a
 
+
 02 远程仓库
 github是远程仓库平台，可以把文件传输到那里去。github有自己的命令行工具，见03节。
-
+常见命令
 git remote
 git remote -v            # 查看各个操作绑定的远程仓库以及对应的代号
 git remote show origin   # 查看代号origin的表示的远程仓库
@@ -39,21 +42,9 @@ git commit -m "一些注释"
 然后上传
 git push
 
-创建一个add commit 和push 的合并命令
-gedit ~/.bashrc
-添加：
-function lazygit(){
-    git add
-    git commit -a -m "$1"
-    git push
-}
-应用更改
-source ~/.bashrc
-执行
-lazygit "一些注释"
-
 102-2
 若未配置绑定关系，且已有本地代码
+
 102-2-1
 若无远程仓库，新建空的远程仓库
 以github为例，可以使用
@@ -64,6 +55,7 @@ b. 浏览器
 使用浏览器创建仓库，需要创建一个空的，不含README、.gitignore等任何文件。
 新建空仓库成功 -> 还需配置，转至102-2-2
 仓库中如果不小心创建了文件，删除仓库。 -> 删库从来，102-2-1
+
 102-2-2
 若已有远程仓库，且为空仓库
 指定远程仓库的别名（以后用origin替代链接）
@@ -75,6 +67,7 @@ git push -u origin main
 查看跟踪关系
 git branch -vv
 -> 配置完成，转至102-1
+
 102-2-3
 若已有远程仓库，且不为空
 如果远程仓库的文件没有用，就删除仓库重新建一个。 -> 102-2-2
@@ -82,15 +75,31 @@ git branch -vv
 
 102-3
 若未配置绑定关系，且已有远程代码
+
 102-3-1
 本地无代码
 git clone或fork一份
+
 102-3-2
 本地有代码
-TODO：长大后再学习
+见不同的修改（第3部分）与分支（第4部分）
+
+
+03 命令脚本
+add commit 和push 的合并命令脚本：
+（有关自定义命令见 https://github.com/giqure/note/自定义命令 ）
+function lazygit(){
+    git add
+    git commit -a -m "$1"
+    git push
+}
+脚本接受一个参数，是commit时的注释，即
+lazygit "一些注释"
+
 
 
 2 github
+
 01 gh操作
 github有自己的命令行控制，建议资深github用户使用。
 sudo apt install gh
@@ -98,7 +107,6 @@ sudo apt install gh
 gh auth login
 创建一个远程仓库
 gh repo create
-
 其他有关仓库的命令
 gh repo list              # 查看自己有哪些仓库
 gh repo view              # 查看仓库信息，需要在一个配置了对应远程github仓库的文件夹查看
@@ -113,7 +121,7 @@ gh repo rename            # 重命名仓库
   ed25519是一种加密方式。该命令生成一对公钥私钥。
   将公钥保存在github上，一般为id_ed25519文件
   cat ~/.ssh/id_ed15519
-  *如果只允许该密钥登录指定仓库，在仓库 > Settings > Deploy keys > Add deploy key操作
+  *如果只允许该密钥登录指定仓库，在仓库内 > Settings > Deploy keys > Add deploy key继续
   复制内容，在浏览器登陆github，Settings > SSH and GPG keys > SSH keys > New SSH Key
   填写信息，在key文本框中粘贴公钥内容。
 - token登录
@@ -127,3 +135,106 @@ gh repo rename            # 重命名仓库
   常规token选择 Tokens (Classic) > Generate new token > Generate new token (classic)
   填写表单，然后获得一个新token，该token再也不会见到了，要保存好
   在git clone等时用token替代密码进行鉴权。
+
+
+
+3 不同的修改
+
+创建仓库的默认分支是主分支，2020年后新仓库主分支的默认名称是main，之前是master
+如果对一个远程仓库多人或单人clone多份到不同的本地位置，每个位置中都下载了一份代码和版本历史，如果在这些不同的
+位置上进行修改和commit，每个本地中的版本历史就各不相同了
+例如 对于分支main
+远程仓库 主代码有C1 C2
+-被克隆-> 本地A 
+  -修改-> C1本地A‘ C2不修改
+  -添加-> C3本地A
+  -提交-> C1本地A' C2本地A C3本地A
+  -准备Push
+-被克隆-> 本地B 
+  -修改-> C1本地B‘ C2不修改
+  -删除-> C2本地删除
+  -提交-> C1本地B'
+  -Push-> 远程与本地一致
+此时B已经push了，远程仓库的历史和B本地的一致，都是新增了一个提交：修改+删除
+如果A此时push，那会收到push失败的结果，因为A此时落后了一个版本。相比远程仓库，A的修改是在新提交之前的基础上完成的，这就是冲突。
+如果A此时强行push，可以覆盖B的修改，那么B的修改在远程仓库上就消失了。
+或者A此时pull下来，看看远程的更新都是什么
+git pull 有两种策略
+git pull --rebase
+git pull --no-rebase
+rebase是变基
+
+no-rebase好理解一些，git把远程仓库下载后与本地进行比对，然后将所有不同的提交标出来，标记如下
+<<<<<< HEAD
+本地的修改
+=======
+远程的修改
+>>>>>> branch-name
+（大小于号是各7个以上，这里只写了六个，因为写成真实情况会导致本文这里被git误判）
+然后手动编辑后提交，这在git历史中体现为
+| C1'' C2 C3        （新） 这里C2保留与否看A的意愿，A看到新的提交之后也可以再写一个C2，git只是标出来哪里不同
+|     \
+| C1‘  | C1' C2 C3
+|     /
+| C1 C2             （老）
+这和实际相符，A和B的修改都是基于C1和C2，产生了一个分岔，最后进行了合并。
+
+变基则是git下载远程仓库后，也是将本地与远程进行比对，但是并不会标出所有不同提交，
+git会尝试将本地提交挪至最新的远程提交之后，如果远程提交的修改与本地提交的修改的位置正好不同，那么git会自动合并，版本历史就显示A的修改是在B的基础上完成的。
+但如果修改了同一个位置，那还是要像no-rebase手动编辑出结果
+rebase的历史体现为线性的
+| C1'' C3  （新）C2不被保留，因为A没有修改C2
+| C1'
+| C1 C2    （老）
+
+
+
+4 分支
+
+在大型仓库以及多人协作下，对main分支的修改应该是极为敏感的，一般main分支是稳定的发布版本
+对于许多仓库，存在开发分支dev，有的还有个人分支或功能分支feature-xxx，修bug分支issue-xxx等
+当feature开发出来，或bug改好了，或者dev稳定了，可以合并到main分支。合并分支和解决冲突类似，见第3部分
+
+查看分支
+git branch -a  # 本地和远程
+git branch     # 本地
+git branch -r  # 远程
+
+01 本地分支常用命令
+创建分支
+git branch dev
+切换分支
+git checkout dev
+创建并切换分支
+git checkout -b dev
+删除分支
+git branch -d dev
+git branch -D dev  # 强制删除
+
+02 远程分支常用命令
+拉取远程分支
+git checkout -b <本地> origin/<远程>
+例如常用命令
+git checkout -b issue-016 origin/main
+把远程main拉下来并创建为issue-016分支
+
+推送分支
+git push origin <本地>:<远程>
+如果本地与远程分支名相同
+git push origin <本地/远程>
+例如常用命令
+git push origin main
+等同于
+git push origin main:main
+（与当前checkout的分支无关）
+本地与远程不同的情况，可能存在于代码审查等场景
+删除远程分支
+git push origin --delete <远程>
+
+03 分支合并
+分支合并一般在本地完成后push上去
+切换到目标分支
+git checkout main
+合并分支
+git merge dev
+可能会产生冲突，见第3部分

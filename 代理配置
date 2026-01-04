@@ -1,43 +1,59 @@
-文档目录：
+本文目录：
 全局代理
->在设置中设置       >>--不能代理HTTPS
->更改环境变量       >>临时    >>永久
->错误的修改设置
+>在设置中设置
+>更改环境变量
 >删除环境变量
 -------
 git代理
 >http(s)协议
 >ssh协议
 >git协议
->删除git设置
 -------
 npm代理
->>改  >>查  >>删
+>修改代理  
+>查询代理
+>删除代理
 -------
 apt代理
 -------
 pip代理
-----------------下面应该添加
-conda代理
+-------
+TODO conda代理
+
 
 
 -----------------------------------------------------------------------
 全局
 -----------------------------------------------------------------------
-在设置中改代理
+
+1 系统网络设置代理
+在 系统设置 > 网络设置 中选择手动 并填入
 HTTP代理     127.0.0.1 7890
 HTTPS代理    127.0.0.1 7890
 FTP代理                0
 Socks主机(S) 127.0.0.1 7890
 
-不过这样会传HTTPS进代理，某代理软件接不了HTTPS协议
-需要在环境中把HTTPS转成HTTP传
+这样会传HTTPS进代理，某代理软件无法处理HTTPS协议
+需要在环境中把HTTPS转成HTTP
 
-1. 查看环境变量
+2 环境变量设置代理
+查看环境变量
 env | grep proxy
 env | grep PROXY
+临时设置
+export HTTP_PROXY=http://127.0.0.1:7890
+export HTTPS_PROXY=http://127.0.0.1:7890
+export ALL_PROXY=socks://127.0.0.1:7890
+export NO_PROXY=localhost,127.0.0/8,::1
 
-改完如下：
+export http_proxy=http://127.0.0.1:7890
+export https_proxy=http://127.0.0.1:7890
+export all_proxy=socks://127.0.0.1:7890
+export no_proxy=localhost,127.0.0/8,::1
+改完再次查看
+env | grep proxy
+env | grep PROXY
+应该显示
 no_proxy=localhost,127.0.0.0/8,::1
 https_proxy=http://127.0.0.1:7890
 http_proxy=http://127.0.0.1:7890
@@ -47,27 +63,22 @@ NO_PROXY=localhost,127.0.0.0/8,::1
 HTTPS_PROXY=http://127.0.0.1:7890
 HTTP_PROXY=http://127.0.0.1:7890
 ALL_PROXY=socks://127.0.0.1:7890
+环境变量设置与之前系统网络设置不冲突，两个都要设置
 
-2. 怎么改？
-export HTTP_PROXY=http://127.0.0.1:7890
-export HTTPS_PROXY=http://127.0.0.1:7890
-export ALL_PROXY=socks://127.0.0.1:7890
-export http_proxy=http://127.0.0.1:7890
-export https_proxy=http://127.0.0.1:7890
-export all_proxy=socks://127.0.0.1:7890
+将临时设置另类写入~/.bashrc可以在启动时自动生效
+手动刷新 source ~/.bashrc
 
-以上是临时加入环境变量
-设置里还填之前的，不管他
+3 取消环境变量设置
+临时取消
+unset HTTP_PROXY
+unset HTTPS_PROXY
+unset ALL_PROXY
+unset http_proxy
+unset https_proxy
+unset all_proxy
 
-永久（每次开机启动加载）：
-在~/.bashrc里加入这几句
-使之生效
-source ~/.bashrc
-
-
-
-
-不能在设置里这样设置
+4 错误的设置
+系统网络设置里这样填写是错误的
 HTTP代理     http://127.0.0.1  7890
 HTTPS代理    http://127.0.0.1  7890
 FTP代理                        0
@@ -78,48 +89,36 @@ HTTPS_PROXY=https://http://127.0.0.1:7890
 ALL_PROXY=socks://socks://127.0.0.1:7890
 
 
-==取消==
-环境变量的取消
-临时：
-unset HTTP_PROXY
-unset HTTPS_PROXY
-unset ALL_PROXY
-unset http_proxy
-unset https_proxy
-unset all_proxy
-永久：
-在~/.bashrc删除
-
 
 -----------------------------------------------------------------------
 git的代理
 -----------------------------------------------------------------------
-http/https协议
+1 http/https协议
 git config --global http.proxy "http://127.0.0.1:7890"
 git config --global https.proxy "http://127.0.0.1:7890"
+删除配置
+git config --global --unset http.proxy
+git config --global --unset https.proxy
 
-
-ssh协议
+2 ssh协议
 在~/.ssh/config写入
 Host github.com
     ProxyCommand connect -S 127.0.0.1:7890 %h %p
 
-
-git协议
+3 git协议
+首先安装
 sudo apt install connect-proxy
-
-在/usr/bin/gitproxy.sh写入
+编辑配置文件
+vim /usr/bin/gitproxy.sh
+写入
 #!/bin/bash
 connect -S 127.0.0.1:7890 $@
-
 提权
 chmod +x gitproxy.sh
-
 关联到git
 git config --global core.gitproxy gitproxy.sh
-
-
-删除git配置：在~/.gitconfig找到删除
+删除配置
+编辑gitproxy.sh，删除其中内容
 
 
 
@@ -155,3 +154,14 @@ pip代理
 (Ubuntu)~/.pip/pip.conf写入
 [global]
 proxy=http://127.0.0.1:10808
+
+
+
+-----------------------------------------------------------------------
+conda代理   TODO: AI提供，需要验证
+-----------------------------------------------------------------------
+conda config --set proxy_servers.http  http://127.0.0.1:7890
+conda config --set proxy_servers.https http://127.0.0.1:7890
+取消
+conda config --remove-key proxy_servers.http
+conda config --remove-key proxy_servers.https
