@@ -6,10 +6,11 @@
 *注意！下面的操作修改EC芯片寄存器，风险高
 sudo apt install acpica-tools acpi-call stress
 # ec_probe都是十进制
-sudo ec_probe write 149 31  # 设置狂暴模式
-sudo ec_probe write 98 0    # 手动设置会触发倒计时，0表示倒计时后什么都不做，否则会重置，这个命令的副作用未知
+sudo ec_probe write 149 49  # 设置狂暴模式
 sudo ec_probe write 52 44   # 将CPU风扇调至4400转，44表示4400转，一般20～44之间
 sudo ec_probe write 53 44   # 同理设置GPU风扇
+sudo ec_probe write 99 0    # 手动设置会触发倒计时，向倒计时寄存器写0会禁用倒计时，即每次write 52 53 149后都要写这个
+或者也可以参考01节最后的脚本
 
 OMen 16-k0xxx或同型号 可以参考
 https://www.reddit.com/r/HPOmen/comments/xe9fiz/almost_nbfc_fan_profile_and_reverse_engineered/
@@ -78,8 +79,16 @@ rweverthing对内核内存进行操作，需要
   - HPCM(0x95)以及其他的寄存器没做实验
 从02节也可以验证SRP1和SRP2的作用
 回到Linux，对0x34和0x35设置
+# 风扇和性能模式寄存器
 # 0x34 的十进制 52
 # 0x35 的十进制 53
+# 0x95 的十进制 149
+# 性能模式参数
+# 0x30 的十进制 48
+# 0x31 的十进制 49
+# 计时器寄存器
+# 0x62 的十进制 98
+# 0x63 的十进制 99
 sudo apt install acpica-tools acpi-call stress
 sudo ec_probe write 52 44
 # 可以观察CPU风扇急速转 44改20可以发现变慢
@@ -89,12 +98,12 @@ sudo ec_probe write 53 44
 sudo ec_probe read 99
 # 观察倒计时器
 sudo ec_probe read 98
-# 观察倒计时控制位
+# 倒计时控制寄存器，作用不详
 
-sudo ec_probe write 149 31
+sudo ec_probe write 149 49
 # 设置狂暴模式
-在write 52 53 149后，在倒计时结束后对写入的寄存器读取，发现变回去了。修改倒计时控制位
-sudo ec_probe write 98 0
+在write 52 53 149后，在倒计时结束后对写入的寄存器读取，发现变回去了。修改倒计时直接为0
+sudo ec_probe write 99 0
 这样等待倒计时结束写入的值不被重置。
 
 到此可以写一个风扇的控制脚本了，或者在.bashrc或.bash_alias写自定义命令。
@@ -110,15 +119,15 @@ hpfan() {
     
     rpm=$1
     if (( 10 < rpm && rpm < 50 )); then
-        sudo ec_probe 52 "$rpm"
-        sudo ec_probe 53 "$rpm"
-        sudo ec_probe 98 0
+        sudo ec_probe write 52 "$rpm"
+        sudo ec_probe write 53 "$rpm"
+        sudo ec_probe write 99 0
     else
         echo "RPM must be between 10 and 50 (exclusive)"
         return 1
     fi
 }
-alias hpp='sudo ec_probe 149 31 && sudo ec_probe 98 0'
+alias hpp='sudo ec_probe write 149 49 && sudo ec_probe write 99 0'
 TODO: 根据温度自动调整的脚本
 
 
