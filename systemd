@@ -1,0 +1,295 @@
+-----------------------------------------
+1
+-----------------------------------------
+1-1
+systemd管理linux系统的方方面面，管理内容以unit为单元，分为12种unit
+服务    service
+unit组  target
+
+设备       device
+挂载点     mount
+自动挂载点 automount
+
+交换空间  swap
+路径      path
+计时器    timer
+快照      snapshot
+
+进程通信            socket
+进程组              slice
+非systemd启动的进程  scope
+其中，timer和socket按需启动，不能开机自启
+
+
+1-2
+其命令行是systemctl，可以管理unit，还可以
+systemctl poweroff                关闭系统
+systemctl reboot                  重启系统
+systemctl suspend                 挂起系统
+systemctl emergency               切换到紧急模式
+systemctl rescue                  切换到救援模式
+常用命令还有
+systemctl reboot --force          杀掉进程重启
+systemctl reboot --force --force  断电重启
+systemctl reboot --firmware-setup 重启进入BIOS/UEFI
+直接输入的reboot/poweroff等等其实就是上面这些
+在启动和关机时看到的一串串也是systemd的输出
+
+systemd-analyze 命令分析启动耗时 -第3部分
+hostnamectl 管理主机信息 - 第4部分
+timedatectl 管理时间信息 - 第4部分
+localectl 管理本地化信息 - 第4部分
+journalctl 管理日志，systemd的所有日志统一管理 - 第2部分
+loginctl 命令管理当前用户 - 第4部分
+
+
+1-3
+每个unit由一个或多个unit文件定义，存放在
+（系统）
+ 管理员自定义的
+/etc/systemd/system/
+ 动态生成的，重启后消失
+/run/systemd/system/
+ 系统和软件的，apt安装时会覆盖
+/usr/lib/systemd/system/
+/lib/systemd/system/
+
+（普通用户，不需要sudo的）
+ 用户自定义的 | 文件同步 音乐守护 ...
+~/.config/systemd/user/
+ 动态生成的，重启后消失
+~/.local/share/systemd/user/
+ 用户软件的，apt安装时会覆盖
+/usr/lib/systemd/user/
+/lib/systemd/user/
+
+加载时优先级上面的覆盖下面的，普通用户与系统的unit无优先级之分，两者同时运行
+
+查看unit的位置有两种方法
+  - systemctl status ufw.service 查看服务状态时可以看到其位置
+  - systemctl cat ufw.service    直接查看unit内容，同时也会显示位置
+
+
+1-4
+unit文件名以他们的类型结尾，如
+ufw.service
+network.target
+详细有关配置文件内容见1-7节
+
+列出unit
+列出已加载的unit，即内存中的unit
+systemctl list-units
+列出所有unit，即硬盘中的unit
+systemctl list-unit-files
+列出特定的unit
+systemctl list-units --type=service
+systemctl list-units --state=running
+systemctl list-units --failed
+用户级别的还需使用 --user参数
+
+list-units的列
+LOAD: Loaded / NotFound / Error 加载情况
+ACTIVE: Active / Inactive / Failed 或 Activating / Deactivating 激活情况
+SUB: Running / Exit / Dead 或更细粒的子状态
+list-unit-files的列
+UNIT FILE: unit文件名
+STATE: 
+  - enabled  开机自启
+  - disabled 开机不自启
+  - static   被依赖的，不能独自启用(禁用)
+  - masked   屏蔽，不可启用
+  - generated  动态生成的，重启后消失
+
+timer和socket有自己的列出命令
+systemctl list-timers
+systemctl list-sockets
+
+
+1-5
+重新加载systemd
+systemctl daemon-reload
+重新加载不会停止unit
+
+
+1-6
+常用命令
+下面的xxx中如果没有指定后缀，则自动添加.service后缀
+即非service的unit必须写后缀。部分类型unit不支持某些命令
+
+启动/停止/重启/查看
+systemctl start xxx
+systemctl stop  xxx
+systemctl restart xxx
+systemctl status xxx
+重新加载（不停止）
+systemctl reload xxx
+自启/取消/查看
+systemctl enable  xxx
+systemctl disable xxx
+事实上，enable等同于
+sudo ln -s '/usr/lib/systemd/system/xxx' '/etc/systemd/system/multi-user.target.wants/xxx'
+multi-user.target是开机时默认启动的target
+
+击毙
+systemctl kill xxx
+对于systemd的unit，使用systemctl kill会杀掉其相关进程组，因此比kill更彻底，一般用于systemctl stop无效时。
+对于配置项Resrtart不是no的unit，system kill和kill都会导致systemd尝试重启，而stop不会
+
+其他 用于脚本或不常用
+查看自启/查看失败/查看运行
+systemctl is-enabled xxx
+systemctl is-failed xxx
+systemctl is-active xxx
+禁用/取消
+systemctl mask xxx
+systemctl unmask xxx
+重启（未运行则算了）
+systemctl try-restart xxx
+systemctl condrestart xxx #（旧式）
+重新加载（如果失败则重启，未运行则运行）
+systemctl reload-or-restart xxx
+systemctl force-reload xxx #（旧式）
+重新加载（如果失败则重启，未运行则算了）
+systemctl try-reload-or-restart xxx
+systemctl condreload xxx #（旧式）
+还有几个，不写了
+
+
+1-7
+unit文件由三个区块组成
+[Unit] [Service] [Install]
+其中[Service]只用于service
+
+以ufw.service为例
+```
+# /lib/systemd/system/ufw.service
+[Unit]
+Description=Uncomplicated firewall
+Documentation=man:ufw(8)
+DefaultDependencies=no
+Before=network-pre.target
+Wants=network-pre.target local-fs.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/lib/ufw/ufw-init start quiet
+ExecStop=/lib/ufw/ufw-init stop
+
+[Install]
+WantedBy=multi-user.target
+```
+[Unit]
+Description=描述
+Documentation=文档
+Requires=依赖Unit，依赖项无法启动报错
+Wants=伴随Unit，伴随项未启动给出警告
+BindsTo=绑定Unit，绑定项终止则同时终止
+Before=先于Unit，本Unit必须启动在该字段Unit前
+After=后于Unit，本Unit必须启动在该字段Unit后
+Conflicts=冲突Unit，不能同时运行
+Condition...=一些条件
+Assert...=一些条件
+[Service]
+Type=允许值如下
+  - simple （默认）执行ExecStart后认为启动成功
+  - forking  配合PIDFile字段，其为子进程id。fork产生子进程后父进程退出，父进程退出成功则认为启动成功。unix常用
+  - oneshot  一次性执行命令，命令执行完成则退出，退出成功后状态由RemainAfterExit决定。
+  - dbus  启动时获取一个d-bus ID，其在dbus上注册成功则认为启动成功。一般用于桌面应用
+  - notify  命令代码调用sd_notify主动告知systemd启动成功。常用
+  - idle  空闲时，即等待其他任务结束后才启动。不常用
+ExecStart=启动时命令
+ExecStartPre=启动前命令
+ExecStartPost=启动后命令
+ExecReload=重新加载时命令
+ExecStop=停止时命令
+ExecStopPost=停止后命令
+*这些命令一般另存为脚本，位于
+  - 自定义脚本 /usr/local/bin/
+  - 系统和软件 /usr/bin/
+  - 大型软件 /opt/xxx/bin/
+  例如
+ExexStart=/usr/bin/python3 /usr/local/bin/myscript.py
+  必须使用绝对路径，且不可用管道等
+RestartSec=重启间隔时间
+Restart=允许值如下
+  - no        不重启
+  - on-success 成功时重启
+  - on-failure 失败时重启
+  - on-abnormal 异常终止时重启
+  - on-watchdog 看门狗超时时重启
+  - always    总是重启。即使设置该值，也会受到StartLimitInterval和StartLimitBurst熔断限制。在limit interval时间内重启limit burst次以上则失败。（默认10s5次）
+TimeoutSec=
+Environment=环境变量
+[Install]
+WantedBy=属于的target，本unit未启动则target警告。enable本unit时会在该字段target.wants下创建软链接
+RequiedBy=属于的target，本unit无法启动则target报错。enable本unit时会在该字段target.requires下创建软链接
+Alias=别名。会创建软链接
+Also=并列unit，本unit被enable时，会同时被enable。
+参考手册：https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+
+
+
+-----------------------------------------
+2
+-----------------------------------------
+journalctl管理systemd的所有日志
+配置文件
+/etc/systemd/journald.conf
+日志共8级
+0   emerg    系统不可用
+1   alert    需要立即采取措施
+2   crit     紧急情况
+3   err      错误
+4   warning  警告
+5   notice   重要
+6   info     普通消息
+7   debug    调试消息，默认不保留
+查看日志占用
+journalctl --disk-usage
+
+常用命令
+查看日志
+journalctl
+journalctl --no-pager     # 不分页
+journalctl -o json-pretty # JSON格式，好看的（-o json表示不换行）
+journalctl -k             # 查看内核日志
+
+指定时间
+journalctl -b         # 查看本次启动日志。默认只保留本次启动日志
+journalctl -b -1      # 查看上次启动日志
+journalctl --since="1 hour ago" --until="10 min ago"
+journalctl --since="2025-12-30" --until="2026-01-01 14:00:00"
+
+实时查看日志
+journalctl -f
+指定行
+journalctl -n 50   # 查看最近50行
+
+查看指定unit
+journalctl -u ufw.service -u nginx.service
+查看指定进程 
+journalctl _PID=1234
+
+查看指定级别
+journalctl -p err   # err以上级别
+
+
+
+-----------------------------------------
+3
+-----------------------------------------
+systemd-analyze分析启动耗时
+常用命令
+总耗时
+systemd-analyze
+unit耗时详情
+systemd-analyze blame
+
+
+-----------------------------------------
+4
+-----------------------------------------
+省流教程见https://ruanyifeng.com/blog/2016/03/systemd-tutorial-commands.html
+官方参考见https://www.freedesktop.org/software/systemd/man

@@ -1,0 +1,35 @@
+现代的服务管理由systemd负责，其主要命令行是systemctl
+服务管理只是systemd负责的一部分，更多有关systemd见https://github.com/giqure/systemd
+常用命令
+重启systemd
+systemctl deamon-reload
+启动服务/停止服务/重启服务/查看状态
+systemctl start xxx
+systemctl stop xxx
+systemctl restart xxx
+systemctl status xxx
+重新加载服务
+systemctl reload xxx
+*重新加载是指在重新加载配置文件，不会关闭服务
+设置服务开机自启/取消/查看
+systemctl enable xxx
+systemctl disable xxx
+systemctl is-enabled xxx
+
+这些xxx称为service unit，在
+  - /etc/systemd/system/
+  - /run/systemd/system/
+  - /usr/lib/systemd/system/
+  - /lib/systemd/system/
+自定义服务应在第一个目录内创建xxx.service
+其内容参照systemd的1-7节
+服务是用来执行脚本的，脚本应该在另一个文件中，详见systemd的1-7节
+创建服务后需要执行systemctl deamon-reload
+启动服务、加入自启
+systemctl start xxx
+systemctl enable xxx
+查看该服务日志
+journalctl -u xxx
+
+更多命令见systemd的1-6节
+更多日志相关见systemd的第2部分

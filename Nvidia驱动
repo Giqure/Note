@@ -15,18 +15,19 @@ sudo apt autoclean
 根据提示按Ctrl+X或F10继续启动
 
 sh path/to/cuda.run
+安装结束后记得添加环境变量
 
 
 *这种为临时修改，仅本次生效。该配置文件为/etc/default/grub，编辑并sudo update-grub为永久修改
 ----------------------------------------------------------------------------------------------------
 分割线
-以下部分内容不准确
+下面是之前写的，大致相同，对Xorg的设置有干预
 ----------------------------------------------------------------------------------------------------
 说在前面：安装时会禁用Nouveau管理器，重启后会无显示。应进入高级选项root模式，继续安装。
 
 
 根据https://docs.omniverse.nvidia.com/dev-guide/latest/linux-troubleshooting.html，
-不要安装PPA源的版本。
+不要安装PPA源的版本
 官网版本：https://www.nvidia.com/Download/Find.aspx
 
 卸载PPA源
@@ -42,5 +43,4 @@ sudo nvidia-uninstall
 sudo chmod +x NVIDIA-Linux-x86_84-........run
 sudo ./NVIDIA-Linux-x86_64..........run
 
-不要选更改Xorg的配置，会导致开机黑屏，其他的按需选择即可。
-
+不要选更改Xorg的配置，会导致开机黑屏，其他的按需选择即可

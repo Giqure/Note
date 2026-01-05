@@ -5,6 +5,7 @@ sudo apt-get update
 
 系统个性化
 sudo apt install chrome-gnome-shell
+https://extensions.gnome.org/
 
 
 N卡驱动及cuda安装

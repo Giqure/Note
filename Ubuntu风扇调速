@@ -2,15 +2,18 @@
 ##  需要在风扇附近观察风扇运转情况
 ##  本文对EC寄存器写入，可能导致的未知后果尚不明确，仅供参考
 00
-如果是同款笔记本，注意是完全同型号的，可以参考下面的设置
-*注意！下面的操作修改EC芯片寄存器，风险高
+如果是同款笔记本，注意是完全同型号的，可以参考下面的设置，或见06节
+*注意！下面的操作修改EC芯片寄存器，风险高。
+首先安装
 sudo apt install acpica-tools acpi-call stress
-# ec_probe都是十进制
+
+52、53寄存器是CPU和GPU的风扇转速，手动写入风扇和性能模式会触发看门狗的倒计时，如果禁用倒计时可能导致过热时风扇仍以设定转速运行，如需温控见06节脚本。
+
 sudo ec_probe write 149 49  # 设置狂暴模式
 sudo ec_probe write 52 44   # 将CPU风扇调至4400转，44表示4400转，一般20～44之间
-sudo ec_probe write 53 44   # 同理设置GPU风扇
+sudo ec_probe write 53 44   # 同理GPU风扇
 sudo ec_probe write 99 0    # 手动设置会触发倒计时，向倒计时寄存器写0会禁用倒计时，即每次write 52 53 149后都要写这个
-或者也可以参考01节最后的脚本
+
 
 OMen 16-k0xxx或同型号 可以参考
 https://www.reddit.com/r/HPOmen/comments/xe9fiz/almost_nbfc_fan_profile_and_reverse_engineered/
@@ -18,17 +21,21 @@ https://www.reddit.com/r/HPOmen/comments/xe9fiz/almost_nbfc_fan_profile_and_reve
 
 
 
-01
+01 常见思路
 
 复制一份ACPI表
 sudo cat /sys/firmware/acpi/tables/DSDT > dsdt.dat
-直接复制的是机器码，翻译一下。该步骤生成dsdt.dsl
+dsdt是机器码，翻译一下。下面这一部翻译dsdt.dat为dsdt.dsl
 iasl -d dsdt.dat
 在dsdt.dsl中查找'FAN'、'RPM'以及各种简写'SFAN' 'SRP' 'SFC'等
-风扇控制常常由EC芯片进行；_TZ是ACPI定义的热区（温度区）；WMI是暴露给Windows的接口，因此查找结果如果在EC、_TZ、WMI等等模块中，更有可能是风扇控制
+风扇控制常常由EC芯片进行；_TZ是ACPI定义的热区（温度区）；WMI是暴露给Windows的接口，因此查找结果如果在
+  - Device(EC) 或 Device(ECx)
+  - Scope(_TZ) 或 Scope(_TZ.xxx)
+  - Method(WMI) Method(WMID) Scope(_SB.WMID) ...
+如果在上述这些模块中，更有可能是风扇控制
 另外，风扇和温度控制、键盘/功能键/键盘灯往往是在同一个模块下
-_TZ中的风扇控制方法往往和温度有关
-如果是在WMI中找到的，还需要继续挖掘实现代码（可能需要知道参数，见02节）
+
+如果是在WMI中找到的，还需要继续挖掘实现代码，见02节
 以该笔记本为例，在_SB.PC00.LPCB下可以找到EC0设备，并且定义了RAM的各个位置
 Scope (_SB.PC00.LPCB) {
     Device (EC0) {
@@ -64,82 +71,65 @@ rweverthing对内核内存进行操作，需要
     中设置 VulnerableDriverBlocklistEnable 为 0
   - 重启进入高级模式（Win11搜索高级启动）并选择疑难解答 > 高级设置 > 启动设置 > 禁用强制驱动程序签名模式。
 在rweverything上方点击EC图标，弹出EC寄存器表格。找到我们注意的SFAN、SRP1、SRP2、RPM1、RPM2、CPUT等等，
+点击左上角保存图标可以保存，点击右上角Refresh图标可以控制刷新频率。
+
 以该笔记本为例，控制风扇转速，可以明显观察到
   - RPM2+RPM1(小端序0xB1B0)就是风扇转速
   - 而SRP1(0x34)和SRP2(0x35)应该是目标转速，分别是CPU和GPU的
   - CPUT(0x57)和控制中心显示的温度相同
   - GPUT(0x89)没看出什么
   - SFAN(0xF4)一直是0，AI猜测是自动/手动模式，其实不是
-点击左上角保存图标可以保存，点击右上角Refresh图标可以控制刷新频率。
-而根据网上资料显示，HPCM(0x95)表示狂暴/平衡模式，在rweverything中得到验证。
-00节中帖子还提到倒计时控制的问题，也可以得到验证。
-在rwverything中可以直接写入EC寄存器，实验发现
-  - SRP1(0x34) SRP2(0x35)就是目标的风扇转速
-  - SFAN(0xF4)是风扇开关，写入64直接关机了！重启许多次后才开机
-  - HPCM(0x95)以及其他的寄存器没做实验
-从02节也可以验证SRP1和SRP2的作用
-回到Linux，对0x34和0x35设置
-# 风扇和性能模式寄存器
-# 0x34 的十进制 52
-# 0x35 的十进制 53
-# 0x95 的十进制 149
-# 性能模式参数
-# 0x30 的十进制 48
-# 0x31 的十进制 49
-# 计时器寄存器
-# 0x62 的十进制 98
-# 0x63 的十进制 99
+而根据网上资料显示，HPCM(0x95)表示狂暴/平衡模式。而0x62 0x63和倒计时有关，倒计时后重置SRP1/SRP2/HPCM。
+  - 在控制中心切换狂暴/平衡模式时，HPCM(0x95)为0x31或0x30
+  - 当SRP1/SRP2/HPCM(0x95)改变时，触发0x63倒计时，同时0x62变为0x06
+写入操作
+  - 控制中心对SRP1/SRP2/HPCM(0x95)写入频繁，因此手动写入0x02并等待2秒触发倒计时
+  - 当0x63倒计时结束，SRP1/SRP2/HPCM(0x95)/0x62 会被重置为0xFF/0xFF/0x30/0x00
+  - SRP1/SRP2是目标转速
+  - SFAN(0xF4)是风扇开关，写入64会直接关机，再次开机时直接重启。经各种方法后笔记本才开机。该寄存器危险，不要操作。
+
+更多验证见02节
+
+回到Linux，再次尝试对0x34和0x35设置，ec_probe是十进制，下面列出进制转换表格
+寄存器相关
+0x34  52 | 0x35  53 | 0x95  149 | 0x62 98 | 0x63  99
+参数
+0x30  48 | 0x31  49 | 0xFF  255
+
+首先安装
 sudo apt install acpica-tools acpi-call stress
+
 sudo ec_probe write 52 44
 # 可以观察CPU风扇急速转 44改20可以发现变慢
 sudo ec_probe write 53 44
 # 可以观察GPU风扇急速转 同理
 
 sudo ec_probe read 99
-# 观察倒计时器
+# 看门狗倒计时器
 sudo ec_probe read 98
-# 倒计时控制寄存器，作用不详
+# 看门狗状态机寄存器，具体状态不详
 
-sudo ec_probe write 149 49
 # 设置狂暴模式
-在write 52 53 149后，在倒计时结束后对写入的寄存器读取，发现变回去了。修改倒计时直接为0
+sudo ec_probe write 149 49
+# 可观察的效果较小，会开放性能，允许温度可以升的更高
+
+在对52 53 149写入后，在倒计时结束后对写入的寄存器读取，发现会被重置为255 255和48，
+向倒计时寄存器写入0，使其无法减法，即无法触发状态更新
 sudo ec_probe write 99 0
 这样等待倒计时结束写入的值不被重置。
-
-到此可以写一个风扇的控制脚本了，或者在.bashrc或.bash_alias写自定义命令。
-（有关自定义命令见 https://giqure.com/Giqure/note/自定义命令）
-参考
-hpfan() {
-    # CHECK input
-    if [[ -z "$1" ]] || ! [[ "$1" =~ ^[0-9]+$ ]]; then
-        echo "用法: hpfan <rpm>"
-        echo "<rpm> 必须是11和40之间的整数"
-        return 1
-    fi
-    
-    rpm=$1
-    if (( 10 < rpm && rpm < 50 )); then
-        sudo ec_probe write 52 "$rpm"
-        sudo ec_probe write 53 "$rpm"
-        sudo ec_probe write 99 0
-    else
-        echo "RPM must be between 10 and 50 (exclusive)"
-        return 1
-    fi
-}
-alias hpp='sudo ec_probe write 149 49 && sudo ec_probe write 99 0'
-TODO: 根据温度自动调整的脚本
+经过上述尝试，可以实现一个简单的脚本，见06节。
 
 
 
-02
+02 更多的分析方法
 
-以该笔记本为例，控制中心是OMen Gaming Hub。
+该笔记本的控制中心是OMen Gaming Hub。
 相关协议和法规可能禁止对软件逆向，谨慎操作。本文所述不针对任何特定软件。
 下面是C#软件的静态反编译方法，首先github下载dnSpy，
-找到C#软件中可疑的DLL，windows下dir /s可以列出子文件夹内容，比如
+找到C#软件中可疑的DLL，比如
 ***.PerformanceControlModule.dll
 ***.FanControlModule.dll
+windows下dir /s可以列出子文件夹内容
 在dnSpy中打开或拖到左侧 Assembly Explorer，在顶部Search > Search Assemblies（Ctrl+Shift+K）打开搜索
 搜索类型选择 数字/字符串 （Number/String），搜索Fan
 双击可能的结果，比如
@@ -236,7 +226,7 @@ Scope (_SB) {
 
 
 
-03
+03 解析
 
 在Windows上可以点点程序控制风扇以及Fn键等等
 应用层 
@@ -294,6 +284,196 @@ _E表示边沿触发，_L表示电平触发 2A和66都是序号
 
 
 
-05
-实验发现SFAN 只是个开关，只要不是0都说明有问题，如果是同型号的笔记本，别调这个。
+05 SFAN
+
+实验发现SFAN 只是个开关，只要不是0都表示编笔记本有问题，如果是同型号的笔记本，别调这个。
 同样的，_TZ中许多控制都和温度有关，比如过热保护阈值等，不建议调。
+
+
+
+06 脚本
+根据实际情况对脚本进行修改
+（有关自定义命令见 https://giqure.com/Giqure/note/自定义命令）
+
+06-1 单次控制
+```
+alias hpp='sudo ec_probe write 149 49 && sleep 0.8 && sudo ec_probe write 99 0'
+hpfan() {
+    # CHECK input
+    if [[ -z "$1" ]] || ! [[ "$1" =~ ^[0-9]+$ ]]; then
+        echo "用法: hpfan <rpm>"
+        echo "<rpm> 必须是11和40之间的整数"
+        return 1
+    fi
+    
+    rpm=$1
+    if (( 10 < rpm && rpm < 50 )); then
+        sudo ec_probe write 52 "$rpm"
+        sudo ec_probe write 53 "$rpm"
+        sudo ec_probe write 99 0
+    else
+        echo "RPM must be between 10 and 50 (exclusive)"
+        return 1
+    fi
+}
+```
+
+06-2 温控
+Gemini写的
+创建脚本
+vim myfan.sh
+添加下面的内容
+```
+#!/bin/bash
+
+# ===========================================
+EC_PROBE="ec_probe"
+
+# 寄存器 (十进制)
+REG_CPU_TEMP=88     # 0x58
+REG_GPU_TEMP=183    # 0xB7
+REG_SINK_TEMP=87    # 0x57
+
+REG_FAN_CPU=52      # 0x34
+REG_FAN_GPU=53      # 0x35
+
+REG_MODE=152        # 0x98
+REG_WATCHDOG=153    # 0x99
+
+# (RPM / 100)
+FAN_MIN=18
+FAN_MAX=46
+FAN_EMERGENCY=48
+
+# 温控阈值
+TEMP_START=45
+TEMP_FULL=85
+# ===========================================
+
+# 检查是否以 root 运行
+if [ "$EUID" -ne 0 ]; then
+  echo "请使用 sudo 运行此脚本"
+  exit 1
+fi
+
+# 定义清理函数 (Ctrl+C 时恢复自动模式)
+cleanup() {
+    echo ""
+    echo "正在恢复自动控制模式..."
+    # 恢复看门狗 (写入 1 让其自然归零或触发复位)
+    $EC_PROBE write $REG_WATCHDOG 1 > /dev/null
+    # 恢复自动模式位
+    $EC_PROBE write $REG_MODE 0 > /dev/null
+    # 重置目标转速为 FF (255)
+    $EC_PROBE write $REG_FAN_CPU 255 > /dev/null
+    $EC_PROBE write $REG_FAN_GPU 255 > /dev/null
+    echo "已恢复 BIOS 接管。"
+    exit 0
+}
+
+# 捕获 SIGINT (Ctrl+C) 和 SIGTERM
+trap cleanup SIGINT SIGTERM
+
+# 激活手动模式
+echo "正在激活手动模式..."
+$EC_PROBE write $REG_WATCHDOG 0 > /dev/null  # 屏蔽看门狗
+$EC_PROBE write $REG_MODE 6 > /dev/null      # 手动模式
+
+echo "风扇控制已启动 (Bash版)。范围: ${FAN_MIN}-${FAN_MAX}"
+
+# 主循环
+while true; do
+    # 1. 读取温度
+    # ec_probe 输出格式通常为 "48 (0x30)"，我们需要用 cut 提取第一个数字
+    CPU_TEMP=$($EC_PROBE read $REG_CPU_TEMP | cut -d' ' -f1)
+    GPU_TEMP=$($EC_PROBE read $REG_GPU_TEMP | cut -d' ' -f1)
+    SINK_TEMP=$($EC_PROBE read $REG_SINK_TEMP | cut -d' ' -f1)
+
+    # 简单的错误检查，防止读取失败导致空值
+    if [[ -z "$CPU_TEMP" ]] || [[ -z "$GPU_TEMP" ]]; then
+        echo "读取传感器失败，跳过..."
+        sleep 2
+        continue
+    fi
+
+    # 2. 计算目标转速 (简单的线性逻辑)
+    # 选取 CPU 和 GPU 中较高的温度
+    MAX_TEMP=$CPU_TEMP
+    if [ "$GPU_TEMP" -gt "$MAX_TEMP" ]; then
+        MAX_TEMP=$GPU_TEMP
+    fi
+
+    # 计算逻辑
+    if [ "$MAX_TEMP" -le "$TEMP_START" ]; then
+        TARGET=$FAN_MIN
+    elif [ "$MAX_TEMP" -ge "$TEMP_FULL" ]; then
+        TARGET=$FAN_MAX
+    else
+        # Bash 不支持浮点运算，使用整数运算模拟线性插值
+        # Formula: MIN + (MAX-MIN) * (TEMP - START) / (FULL - START)
+        RANGE_FAN=$((FAN_MAX - FAN_MIN))
+        RANGE_TEMP=$((TEMP_FULL - TEMP_START))
+        OFFSET=$((MAX_TEMP - TEMP_START))
+        TARGET=$((FAN_MIN + (RANGE_FAN * OFFSET / RANGE_TEMP)))
+    fi
+
+    # 3. 安全兜底 (散热器过热)
+    if [ "$SINK_TEMP" -gt 88 ]; then
+        TARGET=$FAN_EMERGENCY
+    fi
+
+    # 4. 范围限制 (Clamping)
+    if [ "$TARGET" -gt "$FAN_EMERGENCY" ]; then TARGET=$FAN_EMERGENCY; fi
+    if [ "$TARGET" -lt "$FAN_MIN" ]; then TARGET=$FAN_MIN; fi
+
+    # 5. 应用转速
+    $EC_PROBE write $REG_FAN_CPU $TARGET > /dev/null
+    $EC_PROBE write $REG_FAN_GPU $TARGET > /dev/null
+    
+    # 周期性重置看门狗 (保持为 0)
+    $EC_PROBE write $REG_WATCHDOG 0 > /dev/null
+
+    # 打印状态
+    echo -ne "CPU: ${CPU_TEMP}°C | GPU: ${GPU_TEMP}°C | Sink: ${SINK_TEMP}°C | Fan: ${TARGET}00 RPM\r"
+
+    sleep 2
+done
+```
+添加为服务并设置自启（以systemd为例，更多有关服务见https://github.com/giqure/note/linux服务）
+mv myfan.sh /usr/local/bin/myfan.sh
+chmod +x /usr/local/bin/myfan.sh
+sudo vim /etc/systemd/system/myfan.service
+添加下面内容
+```
+[Unit]
+Description=HP OMEN Fan Control Service
+After=multi-user.target
+# 确保 ec_sys 模块已加载 (如果您的 ec_probe 依赖它)
+# ExecStartPre=/sbin/modprobe ec_sys write_support=1
+
+[Service]
+Type=simple
+# 指向您的脚本路径
+ExecStart=/usr/local/bin/omen_fan.sh
+# 如果脚本崩溃，自动重启
+Restart=on-failure
+# 重启间隔 5 秒
+RestartSec=5
+# 以 root 权限运行 (访问 EC 必须)
+User=root
+
+# 禁用输出缓冲，让日志实时显示
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+载入服务管理器
+sudo systemctl daemon-reload
+启动服务
+sudo systemctl start omen-fan.service
+加入自启
+sudo systemctl enable omen-fan.service
+
+如需显示温度与风扇转速推荐gnome-shell扩展
+https://extensions.gnome.org/extension/3891/simple-monitor/
