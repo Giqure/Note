@@ -1,0 +1,4 @@
+CIDR取ip
+=LEFT(A2, IFERROR(FIND("/", A2)-1, LEN(A2)))
+ip转二进制
+=TEXTJOIN("",TRUE,DEC2BIN(TEXTSPLIT(A2,"."),8))
