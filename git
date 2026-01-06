@@ -53,20 +53,21 @@ gh repo create
 该命令会询问是否以当前的本地仓库创建远程仓库，若是则自动配置好绑定关系。 -> 配置完成，转至102-1
 b. 浏览器
 使用浏览器创建仓库，需要创建一个空的，不含README、.gitignore等任何文件。
-新建空仓库成功 -> 还需配置，转至102-2-2
-仓库中如果不小心创建了文件，删除仓库。 -> 删库从来，102-2-1
+新建空仓库成功 -> 继续配置，转至102-2-2
+仓库中如果不小心创建了文件，删除仓库。 -> 删库从来，转至102-2-1
 
 102-2-2
 若已有远程仓库，且为空仓库
 指定远程仓库的别名（以后用origin替代链接）
 git remote add origin https://github.com/Giqure/Note.git
-如果需要重命名分支（2020年前git本地主分支默认名master，现为main）
+如果需要重命名分支（2020年前github仓库主分支默认名master，现为main *没区别，只不过master是外国的敏感词）
 git branch -M main  # 如果分支名是master，可以重命名为main
 向远程仓库push，这是首次push，建立了跟踪关系，后续git push即可。
 git push -u origin main
 查看跟踪关系
 git branch -vv
 -> 配置完成，转至102-1
+如果origin写错了 -> 参考102-4
 
 102-2-3
 若已有远程仓库，且不为空
@@ -83,6 +84,11 @@ git clone或fork一份
 102-3-2
 本地有代码
 见不同的修改（第3部分）与分支（第4部分）
+
+102-4
+修改origin
+git remote set-url origin https://github.com/Giqure/Note.git
+
 
 
 03 命令脚本
