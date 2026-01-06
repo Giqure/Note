@@ -19,6 +19,8 @@ apt代理
 pip代理
 -------
 TODO conda代理
+-------
+TODO docker代理
 
 
 
@@ -165,3 +167,11 @@ conda config --set proxy_servers.https http://127.0.0.1:7890
 取消
 conda config --remove-key proxy_servers.http
 conda config --remove-key proxy_servers.https
+
+
+
+-----------------------------------------------------------------------
+docker代理   TODO: 手册资料，需要验证
+-----------------------------------------------------------------------
+https://docs.docker.com/engine/daemon/proxy/  # 全局，daemon.json指/etc/docker/daemon.json
+https://docs.docker.com/engine/cli/proxy/     # 不可sudo且不在docker组
