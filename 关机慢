@@ -1,6 +1,0 @@
-A stop job is running for Snappy daemon (xxs / 1min 30s)
-打开/etc/systemd/system.conf
-改DefaultTimeoutStopSec
-有注释去掉注释
-重启服务
-systemctl daemon-reload
