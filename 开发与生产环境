@@ -216,7 +216,7 @@ sudo ln -s /home/ubuntu/.nvm/versions/node/v24.12.0/bin/npm /usr/bin/npm
 sudo ln -s /home/ubuntu/.nvm/versions/node/v24.12.0/bin/npx /usr/bin/npx
 
 
-5. 日志配置
+7. 日志配置
 防火墙日志设置在第4部分
 01 基线安全
 编辑
