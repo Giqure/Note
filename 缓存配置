@@ -1,0 +1,2 @@
+export XDG_CACHE_HOME=/root/autodl-tmp/.cache
+export HF_HOME=/root/autodl-tmp/.cache/huggingface
