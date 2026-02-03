@@ -4,4 +4,4 @@ Err:xx https://download.docker.com/linux/ubuntu focal Release
 sudo环境无代理
 sudo -E apt update
 
--E 指使用将当前用户环境变量而非sudo的
+-E 指使用当前用户环境变量而非sudo的
