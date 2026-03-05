@@ -30,7 +30,7 @@ git commit -a
 02 远程仓库
 github是远程仓库平台，可以把文件传输到那里去。github有自己的命令行工具，见03节。
 常见命令
-git remote
+git remote               # 查看本地远程绑定关系
 git remote -v            # 查看各个操作绑定的远程仓库以及对应的代号
 git remote show origin   # 查看代号origin的表示的远程仓库
 
