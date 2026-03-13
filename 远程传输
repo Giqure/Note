@@ -1,0 +1,45 @@
+rsync支持SSH连接和断点续传（Winodws下可在Git或WSL命令行中使用）
+rsync -av --progress \
+  -e "ssh -p 12340" \
+  /path/to/local \
+  root@myremote.com:/path/to/remote
+（源是本地，目标是远程，即上传）
+
+rsync -av --progress \
+  -e "ssh -p 12340" \
+  /path/to/local \
+  root@myremote.com:/path/to/remote
+（源是远程，目标是本地，即下载）
+
+传输文件时，如果目标路径存在，默认会覆写
+传输文件夹时，
+/path/to/source
+在remote下创建local
+/path/to/source/
+在target下复制将source的内容
+如果target不存在，会创建；如果不存在一层以上文件夹那么报错
+
+-a=-rlptgoD
+r: 递归 l: 保留链接 p: 保留权限 t: 保留修改时间 g: 保留组 o: 保留拥有者 D: 保留设备文件
+-v
+显示总结信息
+--process
+显示进度
+-e "ssh -p 12340"
+指定ssh及其参数
+-z
+在传输前打包
+
+Cloudfare R2
+r2商品大屏
+https://www.cloudflare-cn.com/developer-platform/products/r2/
+上传对象指导
+https://developers.cloudflare.com/r2/objects/upload-objects/
+rclone是方便的命令行上传方式
+R2使用rclone指导
+https://developers.cloudflare.com/r2/examples/rclone/
+使用rclone时需要配置Key
+R2配置Key指导
+https://developers.cloudflare.com/r2/api/tokens/
+使用rclone使用分块上传技术，上传大文件时会分多块传输，即消耗多个A类操作中的“创建分片上传”“分片上传”“结束分片上传”1+n+1个额度。
+上传终止会导致分片残留，如需清理使用rclone cleanup清除所有分片。
