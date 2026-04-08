@@ -20,7 +20,7 @@ pip代理
 -------
 TODO conda代理
 -------
-TODO docker代理
+docker代理
 
 
 
@@ -171,7 +171,35 @@ conda config --remove-key proxy_servers.https
 
 
 -----------------------------------------------------------------------
-docker代理   TODO: 手册资料，需要验证
+docker代理
 -----------------------------------------------------------------------
-https://docs.docker.com/engine/daemon/proxy/  # 全局，daemon.json指/etc/docker/daemon.json
+按手册（https://docs.docker.com/engine/daemon/proxy/）配置daemon.json和systemd
+# daemon.json指/etc/docker/daemon.json
+
+/etc/docker/daemon.json
+{
+  "proxies": {
+    "http-proxy": "http://127.0.0.1"7890",
+    "https-proxy": "http://127.0.0.1"7890",
+    "no-proxy": "localhost,127.0.0.0/8,::1"
+  }
+}
+
+/etc/systemd/system/docker.service.d/http-proxy.conf
+sudo mkdir -p /etc/systemd/system/docker.service.d
+[Service]
+Environment="HTTP_PROXY=http://127.0.0.1:7890"
+Environment="HTTPS_PROXY=http://127.0.0.1:7890"
+Environment="NO_PROXY=localhost,127.0.0.0/8,::1"
+
+重启docker
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+验证systemd配置
+sudo systemctl show --property=Environment docker
+应得到
+Environment=HTTP_PROXY=http://127.0.0.1:7890 HTTPS_PROXY=http://127.0.0.1:7890 NO_PROXY=localhost,127.0.0.0/8,::1
+
+另一个手册只为不在docker组中的非root用户配置命令行代理，已经按照上一手册配置的，无需再配置
 https://docs.docker.com/engine/cli/proxy/     # 不可sudo且不在docker组
