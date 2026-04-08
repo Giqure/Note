@@ -333,9 +333,11 @@ listen [::]:443 ssl http2;
 
 多个server匹配规则：
 客户端请求有Host头
--> 匹配到一个且仅一个server_name
---yes> 使用该server处理
---no> 多个server中有一个或多个default_server
+-> 匹配到一个且或多个server_name
+--yes> 匹配到的server中有一个或多个default_server
+---yes> 使用第一个匹配的default_server处理
+---no> 使用第一个匹配的server
+--no> 有一个或多个default_server
 ---yes> 使用第一个default_server处理
 ---no> 使用第一个server
 
