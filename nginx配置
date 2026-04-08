@@ -358,3 +358,15 @@ location /login {
 }
 请求 /login/123 -> 转发 http://127.0.0.1:8000/123
 请求 /login123 -> 转发 http://127.0.0.1:8000/123 *这里会自动加一个
+
+06 其他配置
+拒绝未匹配的host name
+server {
+    listen 80 default_server;
+    server_name _;  # 匹配所有未指定的域名
+    return 403;     # 直接返回403禁止访问
+}
+server {
+    listen 443 ssl default_server;
+    ssl_reject_handshake on;
+}
