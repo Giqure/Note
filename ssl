@@ -1,0 +1,32 @@
+安装certbot
+sudo apt install epel-release certbot
+获取证书
+certbot certonly -d *.域名 --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
+按照提示，填写邮箱并确认(Y)
+按照提示，添加域名解析
+-----------------------------------------------------------------------------------------------------------------------------
+Please deploy a DNS TXT record under the name:
+
+这里是要解析的域名
+
+with the following value:
+
+这里是解析值（记录选择TXT，不是A）
+
+Before continuing, verify the TXT record has been deployed. Depending on the DNS
+provider, this may take some time, from a few seconds to multiple minutes. You can
+check if it has finished deploying with aid of online tools, such as the Google
+Admin Toolbox: https://toolbox.googleapps.com/apps/dig/#TXT/_acme-challenge.liqure.top.
+Look for one or more bolded line(s) below the line ';ANSWER'. It should show the
+value(s) you've just added.
+-----------------------------------------------------------------------------------------------------------------------------
+
+证书三个月有效期，更新重复上述步骤
+需要在有效期内更新
+
+安装openssl
+sudo apt install openssl openssl-devel make zlib zlib-devel gcc gcc-c++ libtool pcre pcre-devel
+手动编译安装带有ssl的nginx（包安装的无需此步）
+./configure --prefix=/usr/local/nginx --with-http_stub_status_module --with-http_ssl_module
+make -j8
+不用make install

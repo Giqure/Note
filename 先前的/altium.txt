@@ -1,0 +1,7 @@
+创建元器件：
+右键项目> 添加Schematic Library> SCH Library 中 Add 一个 Component> 点击Tools> Symbol Wizard
+字符后加\使其变为非（加一横线）
+
+Component编辑页面工具栏从左到右分别是
+筛选 移动/旋转/层次 选择 对齐  |  管脚 符号 形状 文字  |  新增元件Part
+管脚、形状、文字、符号：空格旋转，右键取消
