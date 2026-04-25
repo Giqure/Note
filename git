@@ -238,3 +238,16 @@ git checkout main
 合并分支
 git merge dev
 可能会产生冲突，见第3部分
+
+
+99 实操记录
+mkdir fork-cfl
+cd fork-cfl
+git init
+git remote add upstream https://github.com/w****/c*-for-linux.git
+git fetch upstream 4861cc40e59114f13193c434ecd392d3c2cc****
+git checkout FETCH_HEAD
+git checkout -b main
+(在GITHUB新建空白仓库)
+git remote add origin git@github.com:Giqure/fork-cfl.git
+git push -u origin main
