@@ -1,0 +1,22 @@
+科学计算
+
+库numpy
+#1
+npz和npy文件
+查看文件内容
+ac = np.load('ac.npz')
+ac.files
+ac['item']
+
+#2
+numpy显示数据默认的省略显示，如何完全显示
+np.set_printoptions(threhold=np.inf)
+
+库pytorch
+#1
+detach（Tensor方法）
+detach方法获得一个永久require_grad=False的相同Tensor，此Tensor与原Tensor共享内存，同时变化。
+#2
+Variable（torch.autograd函数）
+此函数已弃用，使用Tensor即可，无需使用Variable。
+此函数的返回一个Tensor对应Variable，因为早期的Tensor无法进行梯度计算，需要套一个Variable。

@@ -1,0 +1,33 @@
+图像处理
+
+库torchvision.transforms
+Compose (transforms)：图像处理列表，顺序执行
+RandomApply (transforms, p=0.5) 图像处理列表，每一个执行概率为p
+RandomChoice (transforms) 列表中随机执行一个
+RandomOrder (transforms) 列表中随机打乱顺序执行
+
+Resize (size, interpolation=2) 缩放
+CenterCrop (size) 以中心截取
+FiveCrop (size) 四角和中心截取
+TenCrop (size, vertical_flip=False) 对图片上下左右以及中心裁剪，全部反转得到10张图片，vertical_flip决定上下翻转还是左右翻转
+RandomCrop (size,padding=None,pad_if_needed=False, fill=0, padding_mode='constant') 随机位置截取
+Pad (padding, fill=0, padding_mode='constant') 周围填充，padding_mode决定全零还是填充和最外圈一样的，具体查文档RandomResizeCrop (size, scale=(0.08, 1.0), ratio=(0.75,1.3333333333333333), interpolation=2) 随机缩放并截取
+
+ColorJitter (brightness=0, contrast=0, saturation=0, hue=0) 亮度、对比度和颜色的变化
+Grayscale (num_output_channels=1) 灰度化
+RandomGrayscale (p=0.1) 随机灰度化
+
+RandomRotation (degrees, resample=False, expand=False, center=None, fill=None) 随机旋转正负degrees度
+RandomHorizontalFlip (p=0.5) 随机水平翻转
+RandomVerticalFlip (p=0.5) 随机垂直翻转
+RandomAffine (degrees, translate=None, scale=None, shear=None, resamole=0, fillcolor=0) 随机仿射变换
+RandomPerspective (distorion_scale=0.5, p=0.5, interpolation=2, fill=0) 随机透视变换
+GaussianBlur (kernel_size, sigma=(0.1, 2.0)) 高斯平滑
+LinearTransformation (transformation_matrix, mean_vector) 线性变换
+Normalize (mean, std, inplace=False) 标准化，mean、std常设为数据集的均值和标准差
+RandomErasing (p=0.5,scale=(0.02, 0.33),ratio=(0.3,3.3), value=0, inplace=False) 随机擦除
+
+ConvertImageDtype(dtype: torch.dtype) 转换数据类型
+ToPILImage (mode=None) 转PIL数组
+ToTensor 转Tensor
+Lambda (lambd) 使用lambda函数
