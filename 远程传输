@@ -7,8 +7,8 @@ rsync -av --progress \
 
 rsync -av --progress \
   -e "ssh -p 12340" \
-  /path/to/local \
-  root@myremote.com:/path/to/remote
+  root@myremote.com:/path/to/remote \
+  /path/to/local
 （源是远程，目标是本地，即下载）
 
 传输文件时，如果目标路径存在，默认会覆写
