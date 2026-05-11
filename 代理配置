@@ -180,8 +180,8 @@ docker代理
 /etc/docker/daemon.json
 {
   "proxies": {
-    "http-proxy": "http://127.0.0.1"7890",
-    "https-proxy": "http://127.0.0.1"7890",
+    "http-proxy": "http://127.0.0.1:7890",
+    "https-proxy": "http://127.0.0.1:7890",
     "no-proxy": "localhost,127.0.0.0/8,::1"
   }
 }
@@ -220,8 +220,8 @@ HTTP_PROXY="http://127.0.0.1:7890" http_proxy="http://127.0.0.1:7890" HTTPS_PROX
 {
  "proxies": {
    "default": {
-     "httpProxy": "http://127.0.0.1:7890",
-     "httpsProxy": "http://127.0.0.1:7890",
+     "httpProxy": "http://172.17.0.1:7890",
+     "httpsProxy": "http://172.17.0.1:7890",
      "noProxy": "NO_PROXY=localhost,127.0.0.0/8,::1"
    },
    "tcp://docker-daemon1.example.com": {
