@@ -15,7 +15,7 @@ sudo useradd -r -m -s /bin/bash webapp2  # 动态网站
 *webapp 用户名
 
 删除用户：
-sudo systemctl --all | grep admin       # 删除前检查服务依赖
+sudo systemctl --all | grep u5er        # 删除前检查服务依赖
 sudo deluser --remove-all-files u5er    # 会删除相关文件
 sudo deluser u5er   # 不会删除相关文件
 删除时提示进程占用：
