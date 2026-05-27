@@ -56,3 +56,8 @@ inode/directory的值改为nemo.desktop
 若要将桌面管理器一并从Nautilus更改为Nemo，执行
 gsettings set org.gnome.desktop.background show-desktop-icons false
 gsettings set org.nemo.desktop show-desktop-icons true
+
+增加终端显示行数
+~/.bashrc
+export HISTSIZE=10000
+export HISTFILESIZE=10000
