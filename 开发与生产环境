@@ -12,7 +12,7 @@ sudo useradd -r -m -s /bin/bash webapp2  # 动态网站
 *-m 为用户创建家目录
 *-s /usr/sbin/nologin 无法登录，即无法交互，只能运行后台服务
 *-s /bin/bash 允许登录
-*webapp 用户名
+*webapp 用户名，允许字母数字下划线
 
 删除用户：
 sudo systemctl --all | grep u5er        # 删除前检查服务依赖
