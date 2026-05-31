@@ -24,6 +24,8 @@ sudo kill all -u u5er
 
 查询用户：
 id webapp
+修改用户密码：
+passwd webapp
 
 
 2. 登录配置
