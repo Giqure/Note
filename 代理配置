@@ -21,6 +21,8 @@ pip代理
 TODO conda代理
 -------
 docker代理
+-------
+vscode插件代理
 
 
 
@@ -242,3 +244,12 @@ sudo的~是/root
 
 原文（CLI代理手册）：
 https://docs.docker.com/engine/cli/proxy/
+
+
+
+-----------------------------------------------------------------------
+vscode插件代理（仅查看）
+-----------------------------------------------------------------------
+以codex为例
+ps aux | grep -i codex
+tr '\0' '\n' < /proc/${codexpid}/environ | grep -i proxy
