@@ -18,7 +18,7 @@ sudo apt install gcc gcc-12 make
 
 以root身份登录
 sh path/to/cuda.run
-安装结束后记得添加环境变量
+安装结束后记得添加环境变量，并还原安全启动设置
 
 
 *这种为临时修改，仅本次生效。该配置文件为/etc/default/grub，编辑并sudo update-grub为永久修改
