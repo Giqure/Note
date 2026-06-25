@@ -10,9 +10,9 @@ sudo apt-get remove --purge *nvidia*
 sudo apt autoremove
 sudo apt autoclean
 并安装gcc make
-sudo apt install gcc make
+sudo apt install gcc gcc-12 make
 
-下载后，重启至GRUB，并在GRUB下按e，编辑本次启动参数，修改引导目标为multi-user模式，使启动不加载图形界面*
+下载后，重启至BIOS，关闭安全启动。然后重启至GRUB，并在GRUB下按e，编辑本次启动参数，修改引导目标为multi-user模式，使启动不加载图形界面*
 将linux行的结尾处添加 systemd.unit=multi-user.target
 根据提示按Ctrl+X或F10继续启动
 
