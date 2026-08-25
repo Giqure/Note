@@ -1,0 +1,245 @@
+这篇笔记源于AI对话记录和回忆，可能会漏掉细节
+
+前提：需要一个可以由域名访问的https服务器，需
+要证书，需要安装Docker并下载镜像，需要开放UDP
+端口。
+
+一 镜像部署
+安装Docker。创建两个文件，Dockerfile和docker-compose.yaml
+==============================
+/opt/derper/Dockerfile
+解释：这是一个多阶段构建文件。
+derper需要在GO环境中编译，编译后
+得到的二进制文件传递给第二个阶段
+的Ubuntu22.04. COPY命令指定了二
+进制文件的位置。Ubuntu版本或视情
+况而定。
+------------------------------
+FROM golang:latest AS builder
+ARG http_proxy
+ARG https_proxy
+
+RUN go install tailscale.com/cmd/derper@latest
+
+FROM ubuntu:22.04
+# 安装必要的依赖
+RUN apt-get update && apt-get install -y ca-certificates iptables iproute2 && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /go/bin/derper /usr/local/bin/derper
+# derper 默认以 root 运行，工作目录
+WORKDIR /app
+------------------------------
+/opt/derper/docker-compose.yaml 
+解释：该文件指定容器运行的参数。
+需要映射的文件（夹）有两个，一是
+derper服务器的证书，保证https访
+问；二是ts的鉴权文件。鉴权文件将
+在后面通过不同方法配置。按情况配
+置域名、端口和证书。本文实现时，
+80和443端口已有服务，由nginx代理
+的。certmode除了手动之外还可以配
+置由Let's Encrypt自动申请证书，
+但此配置需要占用80端口。详见官方
+文档。按需配置代理。
+按需配置鉴权，-verify-clients表
+示需要鉴权，只有在和sock中相同ts
+网络的机器可以访问该DERP。如果未
+指定这个参数，则不需要映射
+/var/run/tailscale，任何知晓服
+务器域名和IP的人都可以使用它。
+域名需要A或AAAA直接解析到服务器，
+不可以经过CDN等路由。
+------------------------------
+version: '3.8'
+
+services:
+  derper:
+    build: 
+      context: .
+      args:
+        - http_proxy=http://172.17.0.1:7890
+        - https_proxy=http://172.17.0.1:7890
+    container_name: derper
+    restart: always
+    network_mode: host # 使用 host 网络模式，DERP不支持NAT
+    volumes:
+      - /opt/derper/ssl:/app/certs
+      - /var/run/tailscale:/var/run/tailscale
+    command: >
+      derper
+      -hostname test.com
+      -a :35555
+      -http-port -1
+      -certmode manual
+      -certdir /app/certs
+      -stun-port 3579
+      -verify-clients
+====================================
+放置证书
+构建镜像并启动容器
+docker-compose up -d
+
+配置鉴权
+方法一，安装ts。按常规步骤安装后登录即可。
+方法二，采用容器：创建第三个文件
+====================================
+docker-compose.yaml
+解释：这是ts容器的启动文件，用于产生鉴权
+sock文件。nginx-authkey-test用于测试这
+个ts是否可以被内网访问，它与其他nginx互
+不相关。
+------------------------------------
+version: "3.7"
+services:
+  ts-authkey-test:
+    image: tailscale/tailscale:latest
+    container_name: ts-authkey-test
+    hostname: authkey-test
+    environment:
+      - TS_AUTHKEY=tskey-***
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_SOCKET=/var/run/tailscale/tailscaled.sock
+    volumes:
+      - ${PWD}/ts-authkey-test/state:/var/lib/tailscale
+      - /var/run/tailscale:/var/run/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+    restart: unless-stopped
+  nginx-authkey-test:
+    image: nginx
+    network_mode: service:ts-authkey-test
+====================================
+停止容器
+docker stop derper ts-authkey-test nginx-authkey-test
+清空sock
+rm /var/run/tailscale/tailscaled.sock
+启动容器
+docker-compose up -d ts-authkey-test
+重启derper
+docker-compose restart derper
+
+开放服务器TCP端口80、443，UDP端口3579、41641
+
+
+
+二 配置nginx
+====================================
+test.com
+------------------------------------
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    http2 on;
+
+    server_name test.com;
+
+    ssl_certificate /etc/nginx/ssl/test.com_bundle.crt;
+    ssl_certificate_key /etc/nginx/ssl/test.com.key;
+
+    # ssl安全
+    ssl_session_timeout 86400;
+    ssl_session_cache shared:SSL:50m;
+    ssl_session_tickets off;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
+    ssl_prefer_server_ciphers off;
+
+    # 安全基线：禁止访问隐藏文件 (.git, .env 等)
+    location ~ /\. {
+        deny all;
+    }
+
+    # derper
+    location / {
+        proxy_pass https://127.0.0.1:35555;
+        proxy_ssl_server_name on;
+        proxy_ssl_name test.com;
+        
+        # 传递host name（替换相应的127.0.0.1为host name）
+        proxy_set_header Host $host;
+        # 传递https （否则陷入http重定向循环）
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 传递用户真实IP （避免日志都是127.0.0.1）
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # 启用 HTTP/1.1
+        proxy_http_version 1.1;
+        # 支持 WebSocket
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
+
+        # 隐藏后端架构（如Next.js）
+        proxy_hide_header X-Powered-By;
+        # 隐藏Node.js
+        proxy_hide_header Server;
+
+        proxy_redirect off;
+
+
+        # 允许上传大文件 (如图片)
+        client_max_body_size 50m;
+        # Derper 长连接服务
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+    }
+
+    # 不允许iframe
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    # 文件类型检查，防止MIME嗅探攻击
+    add_header X-Content-Type-Options "nosniff" always;
+    # 跳转保护
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+}
+====================================
+验证、重启
+nginx -t
+systemctl reload nginx
+
+三 配置ACL
+====================================
+acl.json "DerpMap"字段
+900是自定义的区域代号，可以改为其他大于
+900的数值。名称、域名、IPv4和IPv6按情况
+填写。
+------------------------------------
+"Regions": {
+			"900": {
+				"RegionID":   900,
+				"RegionCode": "myderp",
+				"RegionName": "My Custom DERP",
+
+				"Nodes": [
+					{
+						"Name":     "1",
+						"RegionID": 900,
+						"HostName": "test.com",
+
+						// IPv4 and IPv6 are optional, but recommended, to reduce
+						// potential DERP connectivity issues if DNS is unavailable
+						// or having issues. Addresses must be publicly routable
+						// and not in private IP ranges.
+						"IPv4": "",
+
+						"IPv6": "",
+					},
+				],
+			},
+		},
+====================================
+验证
+tailscale netcheck
+在DERP延时中看到自定义名称myderp，即验证成功
+
+四 更新
+拉取新代码并构建
+docker compose build --no-cache
+重建容器
+docker compose up -d
