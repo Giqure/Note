@@ -1,0 +1,124 @@
+配置记录
+选择俄亥俄州（us-east-2），进入EC2控制台
+启动新实例
+选择Ubuntu
+选择Ubuntu Server 24.04 LTS (HVM), SSD Volume Type
+选择64位（ARM）
+选择t4g.micro
+创建密钥对
+编辑网络
+---
+进入VPC控制台
+进入对应VPC
+操作：编辑CIDR
+添加IPv6 CIDR
+
+进入对应子网
+操作：编辑IPv6 CIDR
+添加IPv6 CIDR
+回到子网控制页面
+操作：编辑子网设置
+勾选：启用自动分配IPv6地址
+取消：启用自动分配共有IPv4地址
+
+进入对应路由表
+编辑路由
+添加路由
+::/0 互联网网关-选择对应网关
+---回到EC2 启动实例
+刷新VPC选项
+选择子网
+禁用：自动分配共有IP
+启用：自动分配IPv6 IP
+创建安全组
+添加入站安全组规则
+ssh，自定义，::/0
+添加入站安全组规则
+自定义UDP，22，任何位置
+展开高级详细信息
+积分规范-选择标准
+检查一下后启动实例
+
+chmod 400 下载的pem文件
+
+ssh -i "下载的pem文件.pem" ubuntu@IPv6
+
+sudo apt update && sudo apt upgrade
+
+---安装tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+|来源-> https://tailscale.com/download
+sudo tailscale up
+进入链接并登陆
+在浏览器页面查看这个机器的IPv6
+安装后再次SSH时使用tailscale下的IPv6，然后建议关闭安全组中的22入站。
+---
+
+---安装WARP
+# Add cloudflare gpg key
+curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+
+
+# Add this repo to your apt repositories
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+
+
+# Install
+sudo apt-get update && sudo apt-get install cloudflare-warp
+warp-cli registration new
+需要确认相关文件
+！！！！如果是SSH连接，则不要进行下一步的connect
+
+|来源-> https://pkg.cloudflareclient.com/
+|来源-> https://developers.cloudflare.com/warp-client/get-started/linux/
+
+warp-cli mode proxy
+warp-cli proxy port 40000
+warp-cli connect
+---
+
+---设置SWAP
+#注意文件大小
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+编辑 /etc/fstab
+/swapfile none swap sw 0 0
+验证
+sudo mount -a
+sudo swapon --show
+free -h
+---
+
+如需git
+git clone https://github.com/Giqure/xxx.git -c http.proxy="http://127.0.0.1:40000"
+如果遇到
+nohup: failed to run command '/home/ubuntu/xxx/bin/xxx-linux-arm64': Permission denied
+解决办法
+chmod +x bin/xxx-linux-arm64
+
+速度测试
+sudo apt install iperf3
+如果安装时没有同意加入dameon，需要手动启动
+iperf3 -s
+---在另一台机器上测试
+iperf3 -c <IPv6> -P 4 -t 15
+iperf3 -c <IPv6> -u -b 200M -t 15
+如果是tailscale的IP直接测试即可，如果是公网的IPv6 IP需要开放5201（TCP+UDP）端口，可以只对测试机器开放
+上述命令执行端是发送端
+iperf3 -c <IPv6> -R -P 4 -t 15
+iperf3 -c <IPv6> -R -u -b 200M -t 15
+加入-R命令，表示反向。即执行端是接收端
+
+修改拥塞
+查看网络设置
+sysctl -a
+设置网络设置
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+sysctl -w net.core.rmem_max=16777216
+sysctl -w net.core.rmem_default=4194304
+bbr设置在两端
+rmem在接收端设置即可
+fq可能导致网络变差，不要设置下面参数
+# sysctl -w net.core.default_qdisc=fq
