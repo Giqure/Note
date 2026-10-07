@@ -370,3 +370,34 @@ server {
     listen 443 ssl default_server;
     ssl_reject_handshake on;
 }
+
+需要验证的静态内容分发
+server {
+    location = /请求路径 {
+        if ($arg_验证字段 != "验证内容") {
+            return 401;
+        }
+
+        # 转发静态内容
+        alias /path/to/file;
+
+        default_type application/html;
+        add_header Cache-Control "no-store, private" always;
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+        access_log off;
+    }
+}
+
+/path/to/file是服务器上实际的文件，需要nginx有权限读取
+nginx所属的用户一般在/etc/nginx/nginx.conf中设置
+grep -nE '^\s*user\s+' /etc/nginx/nginx.conf
+本文以用户名为nginx为例
+测试nginx的权限
+sudo -u nginx test -r /path/to/file && echo "nginx 可以读取" || echo "nginx 无法读取"
+保留文件的root所有权，并为nginx赋予权限。
+sudo chown root:nginx /path/to/file
+sudo chmod 640 /path/to/file
+6表示读写，4表示读；root是所有者，nginx是所属组
+请求时URL为
+http(s)://test.com/请求路径?验证字段=验证内容
+请求路径出错可能会导致404；验证字段/验证内容出错会导致401；file权限问题会导致403
