@@ -371,6 +371,7 @@ server {
     ssl_reject_handshake on;
 }
 
+
 需要验证的静态内容分发
 server {
     location = /请求路径 {
@@ -388,6 +389,7 @@ server {
     }
 }
 
+default_type根据file类型调整
 /path/to/file是服务器上实际的文件，需要nginx有权限读取
 nginx所属的用户一般在/etc/nginx/nginx.conf中设置
 grep -nE '^\s*user\s+' /etc/nginx/nginx.conf
